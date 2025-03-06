@@ -160,7 +160,7 @@ class OlifeWallboxModbusClient:
                     # Use named parameters for compatibility
                     result = await asyncio.get_event_loop().run_in_executor(
                         None, 
-                        lambda: self._client.read_holding_registers(address=address, count=count)
+                        lambda: self._client.read_holding_registers(address, count)
                     )
                     
                     # Log request time for performance monitoring
@@ -262,7 +262,7 @@ class OlifeWallboxModbusClient:
                     # Use named parameters for compatibility
                     result = await asyncio.get_event_loop().run_in_executor(
                         None,
-                        lambda: self._client.write_register(address=address, value=value)
+                        lambda: self._client.write_register(address, value)
                     )
                     
                     # Log request time for performance monitoring
