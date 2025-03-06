@@ -44,9 +44,20 @@ from .const import (
     REG_CHARGE_CURRENT,
     REG_CHARGE_ENERGY,
     REG_CHARGE_POWER,
+    REG_ERROR,
+    REG_CP_STATE,
+    REG_PREV_CP_STATE,
+    REG_POWER_L1,
+    REG_CURRENT_L1,
+    REG_VOLTAGE_L1,
+    REG_ENERGY_L1,
+    REG_ENERGY_L2,
+    REG_ENERGY_L3,
     # State mappings
     WALLBOX_EV_STATES,
     WALLBOX_EV_STATE_ICONS,
+    CP_STATES,
+    CP_STATE_ICONS,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -106,46 +117,133 @@ async def async_setup_entry(
     )
     
     async def async_update_data():
-        """Fetch data from the wallbox."""
-        async with async_timeout.timeout(10):
-            data = {}
+        """Fetch data from the Olife Energy Wallbox."""
+        try:
+            # First ensure connection
+            await client.connect()
             
-            # Read wallbox EV state
-            ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
-            if ev_state:
-                data["wallbox_ev_state"] = ev_state[0]
-                
+            # Read wallbox state
+            wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
+            
             # Read current limit
             current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT, 1)
-            if current_limit:
-                data["current_limit"] = current_limit[0]
-                
+            
+            # Read charging current
+            charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT, 1)
+            
             # Read max station current
-            max_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
-            if max_current:
-                data["max_station_current"] = max_current[0]
-                
+            max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
+            
             # Read LED PWM
             led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
-            if led_pwm:
-                data["led_pwm"] = led_pwm[0]
-                
-            # Read charge current
-            charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT, 1)
-            if charge_current:
-                data["charge_current"] = charge_current[0]
-                
+            
             # Read charge energy
             charge_energy = await client.read_holding_registers(REG_CHARGE_ENERGY, 1)
-            if charge_energy:
-                data["charge_energy"] = charge_energy[0]
-                
+            
             # Read charge power
             charge_power = await client.read_holding_registers(REG_CHARGE_POWER, 1)
-            if charge_power:
+            
+            # Read error code
+            error_code = await client.read_holding_registers(REG_ERROR, 1)
+            
+            # Read CP state
+            cp_state = await client.read_holding_registers(REG_CP_STATE, 1)
+            
+            # Read Previous CP state
+            prev_cp_state = await client.read_holding_registers(REG_PREV_CP_STATE, 1)
+            
+            # Read phase power measurements
+            power_phases = await client.read_holding_registers(REG_POWER_L1, 3)
+            
+            # Read phase current measurements
+            current_phases = await client.read_holding_registers(REG_CURRENT_L1, 3)
+            
+            # Read phase voltage measurements
+            voltage_phases = await client.read_holding_registers(REG_VOLTAGE_L1, 3)
+            
+            # Read phase energy measurements
+            energy_phases = []
+            energy_l1 = await client.read_holding_registers(REG_ENERGY_L1, 2)
+            energy_l2 = await client.read_holding_registers(REG_ENERGY_L2, 2)
+            energy_l3 = await client.read_holding_registers(REG_ENERGY_L3, 2)
+            if energy_l1 is not None and len(energy_l1) >= 2:
+                energy_phases.append(energy_l1[0] + (energy_l1[1] << 16))
+            else:
+                energy_phases.append(None)
+                
+            if energy_l2 is not None and len(energy_l2) >= 2:
+                energy_phases.append(energy_l2[0] + (energy_l2[1] << 16))
+            else:
+                energy_phases.append(None)
+                
+            if energy_l3 is not None and len(energy_l3) >= 2:
+                energy_phases.append(energy_l3[0] + (energy_l3[1] << 16))
+            else:
+                energy_phases.append(None)
+            
+            data = {}
+            
+            if wallbox_ev_state is not None:
+                data["wallbox_ev_state"] = wallbox_ev_state[0]
+                
+            if current_limit is not None:
+                data["current_limit"] = current_limit[0]
+                
+            if charge_current is not None:
+                data["charge_current"] = charge_current[0]
+                
+            if max_station_current is not None:
+                data["max_station_current"] = max_station_current[0]
+                
+            if led_pwm is not None:
+                data["led_pwm"] = led_pwm[0]
+                
+            if charge_energy is not None:
+                data["charge_energy"] = charge_energy[0]
+                
+            if charge_power is not None:
                 data["charge_power"] = charge_power[0]
                 
+            # Add the new register values to the data
+            if error_code is not None:
+                data["error_code"] = error_code[0]
+                
+            if cp_state is not None:
+                data["cp_state"] = cp_state[0]
+                
+            if prev_cp_state is not None:
+                data["prev_cp_state"] = prev_cp_state[0]
+                
+            # Add phase power measurements
+            if power_phases is not None and len(power_phases) >= 3:
+                data["power_l1"] = power_phases[0]
+                data["power_l2"] = power_phases[1]
+                data["power_l3"] = power_phases[2]
+                
+            # Add phase current measurements
+            if current_phases is not None and len(current_phases) >= 3:
+                data["current_l1"] = current_phases[0]
+                data["current_l2"] = current_phases[1]
+                data["current_l3"] = current_phases[2]
+                
+            # Add phase voltage measurements
+            if voltage_phases is not None and len(voltage_phases) >= 3:
+                data["voltage_l1"] = voltage_phases[0]
+                data["voltage_l2"] = voltage_phases[1]
+                data["voltage_l3"] = voltage_phases[2]
+                
+            # Add phase energy measurements
+            if energy_phases[0] is not None:
+                data["energy_l1"] = energy_phases[0]
+            if energy_phases[1] is not None:
+                data["energy_l2"] = energy_phases[1]
+            if energy_phases[2] is not None:
+                data["energy_l3"] = energy_phases[2]
+                
             return data
+        except Exception as ex:
+            _LOGGER.error("Error fetching Olife Energy Wallbox data: %s", ex)
+            raise
     
     coordinator = DataUpdateCoordinator(
         hass,
@@ -169,6 +267,20 @@ async def async_setup_entry(
         OlifeWallboxDailyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
         OlifeWallboxMonthlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
         OlifeWallboxYearlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
+        OlifeWallboxCPStateSensor(coordinator, name, "cp_state", device_info, device_unique_id),
+        OlifeWallboxErrorCodeSensor(coordinator, name, "error_code", device_info, device_unique_id),
+        OlifeWallboxPhasePowerSensor(coordinator, name, "power_l1", device_info, device_unique_id, 1),
+        OlifeWallboxPhasePowerSensor(coordinator, name, "power_l2", device_info, device_unique_id, 2),
+        OlifeWallboxPhasePowerSensor(coordinator, name, "power_l3", device_info, device_unique_id, 3),
+        OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l1", device_info, device_unique_id, 1),
+        OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l2", device_info, device_unique_id, 2),
+        OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l3", device_info, device_unique_id, 3),
+        OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l1", device_info, device_unique_id, 1),
+        OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l2", device_info, device_unique_id, 2),
+        OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l3", device_info, device_unique_id, 3),
+        OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l1", device_info, device_unique_id, 1),
+        OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l2", device_info, device_unique_id, 2),
+        OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l3", device_info, device_unique_id, 3),
     ]
     
     async_add_entities(entities)
@@ -842,3 +954,285 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
             self._last_energy = current_energy
             
         self.async_write_ha_state() 
+
+class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox CP (Control Pilot) state."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._raw_state = None
+        self._error_count = 0
+        
+    def _should_log_error(self):
+        """Determine whether to log an error based on error count."""
+        return self._error_count == 1 or self._error_count % ERROR_LOG_THRESHOLD == 0
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "CP State"
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor as human-readable text."""
+        if not self.available:
+            return None
+            
+        raw_state = self.coordinator.data.get(self._key)
+        if raw_state is None:
+            return None
+            
+        self._raw_state = raw_state
+        
+        # Convert state to human-readable text
+        if raw_state in CP_STATES:
+            return CP_STATES[raw_state]
+        else:
+            if self._should_log_error():
+                _LOGGER.warning("Unknown CP state value: %s", raw_state)
+            return f"Unknown ({raw_state})"
+            
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        if self._raw_state is None:
+            return {}
+            
+        return {
+            "raw_state": self._raw_state,
+            "state_code": self._raw_state,
+        }
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the CP state."""
+        if not self.available or self._raw_state is None:
+            return "mdi:help-circle-outline"
+            
+        return CP_STATE_ICONS.get(
+            self._raw_state, 
+            "mdi:help-circle-outline"
+        )
+        
+    @property
+    def state_class(self):
+        """Return the state class."""
+        return None
+
+class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox error code."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Error Code"
+
+    @property
+    def native_value(self):
+        """Return the error code."""
+        if not self.available:
+            return None
+            
+        value = self.coordinator.data.get(self._key)
+        return value if value is not None else None
+            
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        if not self.available:
+            return {}
+            
+        value = self.coordinator.data.get(self._key)
+        if value is None:
+            return {}
+            
+        # Decode the binary error flags
+        errors = []
+        error_flags = value
+        
+        # These error flags are educated guesses based on standard practices
+        # They should be updated with actual error codes from documentation
+        if error_flags & 0x0001: errors.append("GFCI Fault")
+        if error_flags & 0x0002: errors.append("Over Voltage")
+        if error_flags & 0x0004: errors.append("Under Voltage")
+        if error_flags & 0x0008: errors.append("Over Current")
+        if error_flags & 0x0010: errors.append("Over Temperature")
+        if error_flags & 0x0020: errors.append("Communication Error")
+        if error_flags & 0x0040: errors.append("CP Signal Error")
+        if error_flags & 0x0080: errors.append("Lock Error")
+        if error_flags & 0x0100: errors.append("Emergency Stop")
+        
+        return {
+            "error_code": value,
+            "error_binary": f"{value:016b}",
+            "active_errors": errors
+        }
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        if not self.available:
+            return "mdi:alert-circle-outline"
+            
+        value = self.coordinator.data.get(self._key)
+        if value is None or value == 0:
+            return "mdi:check-circle-outline"
+        return "mdi:alert-circle"
+
+class OlifeWallboxPhasePowerSensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox phase power."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._phase_num = phase_num
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"Phase {self._phase_num} Power"
+
+    @property
+    def native_value(self):
+        """Return the phase power in Watts."""
+        if not self.available:
+            return None
+            
+        return self.coordinator.data.get(self._key)
+            
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return UnitOfPower.WATT
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:flash"
+
+class OlifeWallboxPhaseCurrentSensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox phase current."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._phase_num = phase_num
+        self._attr_device_class = SensorDeviceClass.CURRENT
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"Phase {self._phase_num} Current"
+
+    @property
+    def native_value(self):
+        """Return the phase current in Amps (converting from mA)."""
+        if not self.available:
+            return None
+            
+        milliamps = self.coordinator.data.get(self._key)
+        if milliamps is None:
+            return None
+            
+        # Convert from mA to A
+        return round(milliamps / 1000.0, 2)
+            
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return UnitOfElectricCurrent.AMPERE
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:current-ac"
+
+class OlifeWallboxPhaseVoltageSensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox phase voltage."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._phase_num = phase_num
+        self._attr_device_class = SensorDeviceClass.VOLTAGE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"Phase {self._phase_num} Voltage"
+
+    @property
+    def native_value(self):
+        """Return the phase voltage in Volts (converting from decivolts)."""
+        if not self.available:
+            return None
+            
+        decivolts = self.coordinator.data.get(self._key)
+        if decivolts is None:
+            return None
+            
+        # Convert from 0.1V to V
+        return round(decivolts / 10.0, 1)
+            
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return "V"
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:lightning-bolt"
+
+class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
+    """Sensor for Olife Energy Wallbox phase energy."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._phase_num = phase_num
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"Phase {self._phase_num} Energy"
+
+    @property
+    def native_value(self):
+        """Return the phase energy in kWh (converting from mWh)."""
+        if not self.available:
+            return None
+            
+        milliwatthours = self.coordinator.data.get(self._key)
+        if milliwatthours is None:
+            return None
+            
+        # Convert from mWh to kWh
+        return round(milliwatthours / 1000000.0, 3)
+            
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return UnitOfEnergy.KILO_WATT_HOUR
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:lightning-bolt"
+        
+    @property
+    def last_reset(self):
+        """Return the time when the sensor was last reset."""
+        # This is a total_increasing sensor, so it's never reset
+        return None 
