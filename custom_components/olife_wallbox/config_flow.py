@@ -45,13 +45,22 @@ async def validate_connection(hass: HomeAssistant, data):
     port = data[CONF_PORT]
     slave_id = data[CONF_SLAVE_ID]
 
+    # Initialize with minimal parameters
     client = ModbusTcpClient(host=host, port=port)
+    
+    # Set the slave ID directly as an attribute
     client.unit_id = slave_id
     
     try:
         if client.connect():
             # Try reading a register to verify communication
-            result = client.read_holding_registers(2104, 1)
+            try:
+                # Try newer API pattern
+                result = client.read_holding_registers(2104, count=1)
+            except TypeError:
+                # Try older API pattern
+                result = client.read_holding_registers(2104, 1)
+                
             if not result.isError():
                 return {"success": True}
             else:

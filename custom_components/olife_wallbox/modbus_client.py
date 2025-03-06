@@ -39,12 +39,17 @@ class OlifeWallboxModbusClient:
         self._host = host
         self._port = port
         self._slave_id = slave_id
+        
+        # Initialize with minimal parameters
         self._client = ModbusTcpClient(
             host=host, 
             port=port,
             timeout=CONNECTION_TIMEOUT
         )
-        self._client.unit_id = slave_id  # Set the unit_id/slave_id during initialization
+        
+        # Set the slave ID directly as an attribute - this pattern works on most versions
+        self._client.unit_id = slave_id
+        
         self._lock = asyncio.Lock()
         self._connected = False
         self._last_connect_attempt = datetime.min
@@ -151,17 +156,26 @@ class OlifeWallboxModbusClient:
 
             try:
                 async with self._lock:
-                    # Ensure unit_id is set before each request
-                    self._client.unit_id = self._slave_id
-                    
                     # Start timing the request
                     start_time = time.time()
                     
-                    # Use named parameters for compatibility
-                    result = await asyncio.get_event_loop().run_in_executor(
-                        None, 
-                        lambda: self._client.read_holding_registers(address, count)
-                    )
+                    # Use a compatibility layer for different pymodbus versions
+                    try:
+                        # Try newer API pattern
+                        result = await asyncio.get_event_loop().run_in_executor(
+                            None, 
+                            lambda: self._client.read_holding_registers(address, count=count)
+                        )
+                    except TypeError:
+                        try:
+                            # Try older API pattern
+                            result = await asyncio.get_event_loop().run_in_executor(
+                                None, 
+                                lambda: self._client.read_holding_registers(address, count)
+                            )
+                        except Exception as e:
+                            _LOGGER.error("Failed to read registers: %s", e)
+                            return None
                     
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
@@ -247,9 +261,6 @@ class OlifeWallboxModbusClient:
 
             try:
                 async with self._lock:
-                    # Ensure unit_id is set before each request
-                    self._client.unit_id = self._slave_id
-                    
                     # Log the write operation
                     _LOGGER.debug(
                         "Writing value %s to register %s", 
@@ -259,11 +270,23 @@ class OlifeWallboxModbusClient:
                     # Start timing the request
                     start_time = time.time()
                     
-                    # Use named parameters for compatibility
-                    result = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: self._client.write_register(address, value)
-                    )
+                    # Use a compatibility layer for different pymodbus versions
+                    try:
+                        # Try newer API pattern first
+                        result = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: self._client.write_register(address, values=value)
+                        )
+                    except TypeError:
+                        try:
+                            # Try older API pattern
+                            result = await asyncio.get_event_loop().run_in_executor(
+                                None,
+                                lambda: self._client.write_register(address, value)
+                            )
+                        except Exception as e:
+                            _LOGGER.error("Failed to write register: %s", e)
+                            return False
                     
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
