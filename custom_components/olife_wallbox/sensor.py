@@ -1,6 +1,7 @@
 """Sensor platform for Olife Energy Wallbox integration."""
 import logging
 from datetime import timedelta
+from typing import Optional
 import async_timeout
 
 from homeassistant.components.sensor import (
@@ -15,6 +16,8 @@ from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfEnergy,
     UnitOfPower,
+    STATE_UNKNOWN,
+    STATE_UNAVAILABLE,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -38,10 +41,16 @@ from .const import (
     REG_CHARGE_CURRENT,
     REG_CHARGE_ENERGY,
     REG_CHARGE_POWER,
+    # State mappings
+    WALLBOX_EV_STATES,
+    WALLBOX_EV_STATE_ICONS,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
 _LOGGER = logging.getLogger(__name__)
+
+# Error count threshold for reducing log spam
+ERROR_LOG_THRESHOLD = 10
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -161,6 +170,16 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
 class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox EV state."""
 
+    def __init__(self, coordinator, name, key, device_info, device_unique_id):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._raw_state = None
+        self._error_count = 0
+        
+    def _should_log_error(self):
+        """Determine whether to log an error based on error count."""
+        return self._error_count == 1 or self._error_count % ERROR_LOG_THRESHOLD == 0
+
     @property
     def name(self):
         """Return the name of the sensor."""
@@ -168,8 +187,50 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
 
     @property
     def native_value(self):
-        """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key) if self._key in self.coordinator.data else None
+        """Return the state of the sensor as human-readable text."""
+        if not self.available:
+            return None
+            
+        raw_state = self.coordinator.data.get(self._key)
+        if raw_state is None:
+            return None
+            
+        self._raw_state = raw_state
+        
+        # Convert state to human-readable text
+        if raw_state in WALLBOX_EV_STATES:
+            return WALLBOX_EV_STATES[raw_state]
+        else:
+            if self._should_log_error():
+                _LOGGER.warning("Unknown EV state value: %s", raw_state)
+            return f"Unknown ({raw_state})"
+            
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        if self._raw_state is None:
+            return {}
+            
+        return {
+            "raw_state": self._raw_state,
+            "state_code": self._raw_state,
+        }
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the EV state."""
+        if not self.available or self._raw_state is None:
+            return "mdi:help-circle-outline"
+            
+        return WALLBOX_EV_STATE_ICONS.get(
+            self._raw_state, 
+            "mdi:help-circle-outline"
+        )
+        
+    @property
+    def state_class(self):
+        """Return the state class."""
+        return None
 
 class OlifeWallboxCurrentLimitSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox current limit."""

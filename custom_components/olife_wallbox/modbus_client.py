@@ -2,11 +2,34 @@
 import logging
 import asyncio
 from datetime import datetime, timedelta
+import socket
+import time
+from typing import Optional, List, Union
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ConnectionException, ModbusException
+from pymodbus.pdu import ExceptionResponse
 
 _LOGGER = logging.getLogger(__name__)
+
+# Constants for retry logic
+MAX_RETRIES = 3
+RETRY_DELAY = 1  # seconds
+CONNECTION_TIMEOUT = 10  # seconds
+
+# Modbus exception codes mapped to human-readable messages
+MODBUS_EXCEPTIONS = {
+    1: "Illegal Function",
+    2: "Illegal Data Address",
+    3: "Illegal Data Value",
+    4: "Slave Device Failure",
+    5: "Acknowledge",
+    6: "Slave Device Busy",
+    7: "Negative Acknowledge",
+    8: "Memory Parity Error",
+    10: "Gateway Path Unavailable",
+    11: "Gateway Target Device Failed to Respond"
+}
 
 class OlifeWallboxModbusClient:
     """Modbus client for Olife Energy Wallbox."""
@@ -16,34 +39,82 @@ class OlifeWallboxModbusClient:
         self._host = host
         self._port = port
         self._slave_id = slave_id
-        self._client = ModbusTcpClient(host=host, port=port)
+        self._client = ModbusTcpClient(
+            host=host, 
+            port=port,
+            timeout=CONNECTION_TIMEOUT
+        )
         self._client.unit_id = slave_id  # Set the unit_id/slave_id during initialization
         self._lock = asyncio.Lock()
         self._connected = False
         self._last_connect_attempt = datetime.min
+        self._connection_errors = 0
+        self._consecutive_errors = 0
+        self._last_successful_connection = datetime.min
 
     async def connect(self):
-        """Connect to the Modbus device."""
+        """Connect to the Modbus device with retry logic."""
         if self._connected:
             return True
 
-        # Limit connection attempts
+        # Implement backoff for repeated connection failures
         now = datetime.now()
-        if now - self._last_connect_attempt < timedelta(seconds=10):
+        backoff_time = min(10 * (2 ** min(self._connection_errors, 5)), 300)  # Max 5 minutes
+        
+        if now - self._last_connect_attempt < timedelta(seconds=backoff_time):
+            _LOGGER.debug(
+                "Waiting %s seconds before next connection attempt to %s:%s",
+                backoff_time, self._host, self._port
+            )
             return False
 
         self._last_connect_attempt = now
 
         try:
+            _LOGGER.debug("Connecting to Olife Wallbox at %s:%s", self._host, self._port)
             async with self._lock:
                 connected = await asyncio.get_event_loop().run_in_executor(
                     None, self._client.connect
                 )
-                self._connected = connected
+                
+                if connected:
+                    self._connected = True
+                    self._connection_errors = 0
+                    self._consecutive_errors = 0
+                    self._last_successful_connection = now
+                    _LOGGER.info("Successfully connected to Olife Wallbox at %s:%s", self._host, self._port)
+                else:
+                    self._connection_errors += 1
+                    _LOGGER.warning(
+                        "Connection attempt to Olife Wallbox at %s:%s failed (attempt %s)",
+                        self._host, self._port, self._connection_errors
+                    )
+                    self._connected = False
+                
                 return connected
         except ConnectionException as ex:
-            _LOGGER.error("Failed to connect to Olife Wallbox: %s", ex)
+            self._connection_errors += 1
             self._connected = False
+            _LOGGER.error(
+                "Failed to connect to Olife Wallbox at %s:%s: %s (attempt %s)",
+                self._host, self._port, ex, self._connection_errors
+            )
+            return False
+        except (socket.timeout, socket.error) as ex:
+            self._connection_errors += 1
+            self._connected = False
+            _LOGGER.error(
+                "Socket error connecting to Olife Wallbox at %s:%s: %s (attempt %s)",
+                self._host, self._port, ex, self._connection_errors
+            )
+            return False
+        except Exception as ex:
+            self._connection_errors += 1
+            self._connected = False
+            _LOGGER.error(
+                "Unexpected error connecting to Olife Wallbox at %s:%s: %s (attempt %s)",
+                self._host, self._port, ex, self._connection_errors
+            )
             return False
 
     async def disconnect(self):
@@ -52,69 +123,225 @@ class OlifeWallboxModbusClient:
             return
 
         try:
+            _LOGGER.debug("Disconnecting from Olife Wallbox at %s:%s", self._host, self._port)
             async with self._lock:
                 await asyncio.get_event_loop().run_in_executor(
                     None, self._client.close
                 )
+                _LOGGER.debug("Successfully disconnected from Olife Wallbox")
         except ConnectionException as ex:
             _LOGGER.error("Error disconnecting from Olife Wallbox: %s", ex)
+        except Exception as ex:
+            _LOGGER.error("Unexpected error disconnecting from Olife Wallbox: %s", ex)
         finally:
             self._connected = False
 
-    async def read_holding_registers(self, address, count):
-        """Read holding registers."""
-        if not await self.connect():
-            return None
+    async def read_holding_registers(self, address, count) -> Optional[List[int]]:
+        """Read holding registers with retry mechanism."""
+        for retry in range(MAX_RETRIES):
+            if not await self.connect():
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.debug(
+                        "Connection failed, retrying in %s seconds (attempt %s/%s)",
+                        RETRY_DELAY, retry + 1, MAX_RETRIES
+                    )
+                    await asyncio.sleep(RETRY_DELAY)
+                    continue
+                return None
 
-        try:
-            async with self._lock:
-                # Ensure unit_id is set before each request
-                self._client.unit_id = self._slave_id
-                # Use named parameters for compatibility
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, 
-                    lambda: self._client.read_holding_registers(address=address, count=count)
-                )
+            try:
+                async with self._lock:
+                    # Ensure unit_id is set before each request
+                    self._client.unit_id = self._slave_id
+                    
+                    # Start timing the request
+                    start_time = time.time()
+                    
+                    # Use named parameters for compatibility
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        None, 
+                        lambda: self._client.read_holding_registers(address=address, count=count)
+                    )
+                    
+                    # Log request time for performance monitoring
+                    elapsed = time.time() - start_time
+                    _LOGGER.debug(
+                        "Read register %s (count: %s) completed in %.3f seconds",
+                        address, count, elapsed
+                    )
+                    
+                    # Reset consecutive errors on success
+                    self._consecutive_errors = 0
+                    
+                    # Handle different types of errors
+                    if isinstance(result, ExceptionResponse):
+                        exception_code = result.exception_code
+                        exception_msg = MODBUS_EXCEPTIONS.get(
+                            exception_code, f"Unknown exception code: {exception_code}"
+                        )
+                        _LOGGER.error(
+                            "Modbus exception reading register %s: %s", 
+                            address, exception_msg
+                        )
+                        return None
+                    
+                    if hasattr(result, 'isError') and result.isError():
+                        _LOGGER.error("Error reading register %s: %s", address, result)
+                        return None
+                    
+                    if not hasattr(result, 'registers'):
+                        _LOGGER.error(
+                            "Unexpected response format reading register %s: %s", 
+                            address, result
+                        )
+                        return None
+                        
+                    return result.registers
+            except (ConnectionException, ModbusException) as ex:
+                self._consecutive_errors += 1
+                self._connected = False
                 
-                if hasattr(result, 'isError') and result.isError():
-                    _LOGGER.error("Error reading register %s: %s", address, result)
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.warning(
+                        "Error reading register %s: %s. Retrying in %s seconds (attempt %s/%s)",
+                        address, ex, RETRY_DELAY, retry + 1, MAX_RETRIES
+                    )
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
+                    _LOGGER.error(
+                        "Failed to read register %s after %s attempts: %s",
+                        address, MAX_RETRIES, ex
+                    )
+                    return None
+            except asyncio.CancelledError:
+                _LOGGER.debug("Read operation cancelled for register %s", address)
+                raise  # Re-raise cancellation to properly handle it
+            except Exception as ex:
+                self._consecutive_errors += 1
+                self._connected = False
+                _LOGGER.error(
+                    "Unexpected error reading register %s: %s",
+                    address, ex
+                )
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.warning("Retrying in %s seconds", RETRY_DELAY)
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
                     return None
                     
-                return result.registers
-        except (ConnectionException, ModbusException) as ex:
-            _LOGGER.error("Error reading register %s: %s", address, ex)
-            self._connected = False
-            return None
-        except Exception as ex:
-            _LOGGER.error("Unexpected error reading register %s: %s", address, ex)
-            self._connected = False
-            return None
+        # If we get here, all retries failed
+        return None
 
-    async def write_register(self, address, value):
-        """Write to a holding register."""
-        if not await self.connect():
-            return False
+    async def write_register(self, address, value) -> bool:
+        """Write to a holding register with retry mechanism."""
+        for retry in range(MAX_RETRIES):
+            if not await self.connect():
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.debug(
+                        "Connection failed, retrying in %s seconds (attempt %s/%s)",
+                        RETRY_DELAY, retry + 1, MAX_RETRIES
+                    )
+                    await asyncio.sleep(RETRY_DELAY)
+                    continue
+                return False
 
-        try:
-            async with self._lock:
-                # Ensure unit_id is set before each request
-                self._client.unit_id = self._slave_id
-                # Use named parameters for compatibility
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._client.write_register(address=address, value=value)
-                )
+            try:
+                async with self._lock:
+                    # Ensure unit_id is set before each request
+                    self._client.unit_id = self._slave_id
+                    
+                    # Log the write operation
+                    _LOGGER.debug(
+                        "Writing value %s to register %s", 
+                        value, address
+                    )
+                    
+                    # Start timing the request
+                    start_time = time.time()
+                    
+                    # Use named parameters for compatibility
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self._client.write_register(address=address, value=value)
+                    )
+                    
+                    # Log request time for performance monitoring
+                    elapsed = time.time() - start_time
+                    _LOGGER.debug(
+                        "Write to register %s completed in %.3f seconds",
+                        address, elapsed
+                    )
+                    
+                    # Reset consecutive errors on success
+                    self._consecutive_errors = 0
+                    
+                    # Handle different types of errors
+                    if isinstance(result, ExceptionResponse):
+                        exception_code = result.exception_code
+                        exception_msg = MODBUS_EXCEPTIONS.get(
+                            exception_code, f"Unknown exception code: {exception_code}"
+                        )
+                        _LOGGER.error(
+                            "Modbus exception writing to register %s: %s", 
+                            address, exception_msg
+                        )
+                        return False
+                    
+                    if hasattr(result, 'isError') and result.isError():
+                        _LOGGER.error("Error writing to register %s: %s", address, result)
+                        return False
+                    
+                    _LOGGER.debug(
+                        "Successfully wrote value %s to register %s",
+                        value, address
+                    )
+                    return True
+            except (ConnectionException, ModbusException) as ex:
+                self._consecutive_errors += 1
+                self._connected = False
                 
-                if hasattr(result, 'isError') and result.isError():
-                    _LOGGER.error("Error writing to register %s: %s", address, result)
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.warning(
+                        "Error writing to register %s: %s. Retrying in %s seconds (attempt %s/%s)",
+                        address, ex, RETRY_DELAY, retry + 1, MAX_RETRIES
+                    )
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
+                    _LOGGER.error(
+                        "Failed to write to register %s after %s attempts: %s",
+                        address, MAX_RETRIES, ex
+                    )
+                    return False
+            except asyncio.CancelledError:
+                _LOGGER.debug("Write operation cancelled for register %s", address)
+                raise  # Re-raise cancellation to properly handle it
+            except Exception as ex:
+                self._consecutive_errors += 1
+                self._connected = False
+                _LOGGER.error(
+                    "Unexpected error writing to register %s: %s",
+                    address, ex
+                )
+                if retry < MAX_RETRIES - 1:
+                    _LOGGER.warning("Retrying in %s seconds", RETRY_DELAY)
+                    await asyncio.sleep(RETRY_DELAY)
+                else:
                     return False
                     
-                return True
-        except (ConnectionException, ModbusException) as ex:
-            _LOGGER.error("Error writing to register %s: %s", address, ex)
-            self._connected = False
-            return False
-        except Exception as ex:
-            _LOGGER.error("Unexpected error writing to register %s: %s", address, ex)
-            self._connected = False
-            return False 
+        # If we get here, all retries failed
+        return False
+        
+    @property
+    def connection_errors(self) -> int:
+        """Return the number of connection errors."""
+        return self._connection_errors
+        
+    @property
+    def consecutive_errors(self) -> int:
+        """Return the number of consecutive errors."""
+        return self._consecutive_errors
+        
+    @property
+    def last_successful_connection(self) -> datetime:
+        """Return the timestamp of the last successful connection."""
+        return self._last_successful_connection 
