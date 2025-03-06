@@ -138,7 +138,7 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
     @property
     def native_max_value(self):
         """Return the maximum value."""
-        return 16  # Limited by fuses as per user config
+        return 32  # Maximum for EV charging
         
     @property
     def native_step(self):
