@@ -1,7 +1,7 @@
 """Sensor platform for Olife Energy Wallbox integration."""
 import logging
-from datetime import timedelta
-from typing import Optional
+from datetime import timedelta, datetime
+from typing import Optional, Any, Dict
 import async_timeout
 
 from homeassistant.components.sensor import (
@@ -19,7 +19,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     STATE_UNAVAILABLE,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import (
@@ -27,6 +27,9 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -136,6 +139,7 @@ async def async_setup_entry(
         OlifeWallboxChargeCurrentSensor(coordinator, name, "charge_current", device_info, device_unique_id),
         OlifeWallboxChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
         OlifeWallboxChargePowerSensor(coordinator, name, "charge_power", device_info, device_unique_id),
+        OlifeWallboxDailyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
     ]
     
     async_add_entities(entities)
@@ -373,4 +377,123 @@ class OlifeWallboxChargePowerSensor(OlifeWallboxSensor):
     @property
     def state_class(self):
         """Return the state class of the sensor."""
-        return SensorStateClass.MEASUREMENT 
+        return SensorStateClass.MEASUREMENT
+
+class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
+    """Sensor for Olife Energy Wallbox daily charge energy."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id):
+        """Initialize the daily energy sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._daily_energy = 0.0
+        self._last_energy = None
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+        self._unsub_midnight = None
+        self._today = dt_util.now().date()
+
+    async def async_added_to_hass(self):
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        
+        # Restore previous state if available
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            try:
+                self._daily_energy = float(last_state.state)
+                # Get the date from the attributes if available
+                if "date" in last_state.attributes:
+                    stored_date = dt_util.parse_date(last_state.attributes["date"])
+                    if stored_date and stored_date != self._today:
+                        _LOGGER.debug("Resetting daily energy counter due to date change")
+                        self._daily_energy = 0.0
+            except (ValueError, TypeError) as ex:
+                _LOGGER.warning("Failed to restore daily energy state: %s", ex)
+        
+        # Register a daily callback to reset the counter at midnight
+        @callback
+        def midnight_callback(_):
+            """Reset counter at midnight."""
+            self._daily_energy = 0.0
+            self._today = dt_util.now().date()
+            self.async_write_ha_state()
+            _LOGGER.debug("Daily energy counter reset at midnight")
+            
+        self._unsub_midnight = async_track_time_change(
+            self.hass, midnight_callback, hour=0, minute=0, second=0
+        )
+        
+        # Register coordinator update callback
+        self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.hass.async_create_task(self._async_update())
+        super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self):
+        """When entity is being removed from hass."""
+        await super().async_will_remove_from_hass()
+        if self._unsub_midnight is not None:
+            self._unsub_midnight()
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Daily Charge Energy"
+
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_daily_{self._key}"
+
+    @property
+    def native_value(self):
+        """Return the daily energy consumption."""
+        return round(self._daily_energy, 2)
+        
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        return {
+            "date": self._today.isoformat(),
+            "last_reset": dt_util.start_of_local_day().isoformat(),
+        }
+
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:battery-charging-outline"
+
+    async def _async_update(self) -> None:
+        """Update the daily energy counter using the session energy."""
+        if not self.available:
+            return
+            
+        current_energy = self.coordinator.data.get(self._key)
+        
+        if current_energy is None:
+            return
+            
+        # If this is the first reading, just store the value
+        if self._last_energy is None:
+            self._last_energy = current_energy
+            return
+            
+        # Check if the session energy has been reset (new session started)
+        # or increased (continuing session)
+        if current_energy < self._last_energy:
+            # New session - add the last complete session to the daily total
+            _LOGGER.debug(
+                "New charging session detected. Adding %s Wh to daily total.", 
+                self._last_energy
+            )
+            self._daily_energy += self._last_energy
+            self._last_energy = current_energy
+        else:
+            # Session continuing - update the last energy value
+            self._last_energy = current_energy
+            
+        self.async_write_ha_state() 
