@@ -20,7 +20,7 @@ This custom integration allows you to monitor and control your Olife Energy Wall
 
 1. Ensure [HACS](https://hacs.xyz/) is installed
 2. Go to HACS > Integrations > "+" button > "Custom repositories"
-3. Add the URL: `https://github.com/yourusername/olife_wallbox`
+3. Add the URL: `https://github.com/mi1os/ha-olife-wallbox`
 4. Select "Integration" as category
 5. Search for "Olife Energy Wallbox" and install
 
