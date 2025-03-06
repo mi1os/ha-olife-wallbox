@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history and tags
         
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -29,6 +31,28 @@ jobs:
       - name: Extract version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the current tag
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          
+          # Find the previous tag
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep "^v" | grep -v $CURRENT_TAG | head -n 1)
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # If no previous tag exists, use the first commit
+            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+            echo "* Initial release" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            # Generate changelog between tags
+            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+            git log --pretty=format:"* %s" $PREVIOUS_TAG..$CURRENT_TAG >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "Previous version was $PREVIOUS_TAG"
+          fi
 
       - name: Create ZIP file
         run: |
@@ -57,8 +81,8 @@ jobs:
           body: |
             # Olife Energy Wallbox Integration v${{ env.VERSION }}
             
-            Changes in this version:
-            - Check the commit history for details
+            ## Changes in this version:
+            ${{ env.CHANGELOG }}
             
             ## Installation
             
