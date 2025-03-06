@@ -32,8 +32,22 @@ jobs:
 
       - name: Create ZIP file
         run: |
-          zip -r olife_wallbox.zip custom_components/ README.md
+          # Create a temporary directory
+          TEMP_DIR=$(mktemp -d)
+          mkdir -p $TEMP_DIR/custom_components
           
+          # Copy files to the temp directory with the proper structure
+          cp -r custom_components/olife_wallbox $TEMP_DIR/custom_components/
+          cp README.md $TEMP_DIR/
+          
+          # Create the zip file from the temp directory
+          cd $TEMP_DIR
+          zip -r $GITHUB_WORKSPACE/olife_wallbox.zip .
+          cd $GITHUB_WORKSPACE
+          
+          # Clean up
+          rm -rf $TEMP_DIR
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1

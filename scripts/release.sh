@@ -25,10 +25,25 @@ echo "Preparing release $VERSION_WITHOUT_V (tag: $TAG_VERSION)"
 sed -i.bak "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION_WITHOUT_V\"/" custom_components/olife_wallbox/manifest.json
 rm custom_components/olife_wallbox/manifest.json.bak
 
-# Create zip file
-echo "Creating zip file..."
+# Create zip file with proper structure for HACS
+echo "Creating zip file with proper structure for HACS..."
 rm -f olife_wallbox.zip
-zip -r olife_wallbox.zip custom_components/ README.md
+
+# Create a temporary directory
+TEMP_DIR=$(mktemp -d)
+mkdir -p $TEMP_DIR/custom_components
+
+# Copy files to the temp directory with the proper structure
+cp -r custom_components/olife_wallbox $TEMP_DIR/custom_components/
+cp README.md $TEMP_DIR/
+
+# Create the zip file from the temp directory
+cd $TEMP_DIR
+zip -r $OLDPWD/olife_wallbox.zip .
+cd $OLDPWD
+
+# Clean up
+rm -rf $TEMP_DIR
 
 # Commit changes
 echo "Committing changes..."
