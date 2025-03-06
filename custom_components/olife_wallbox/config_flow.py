@@ -28,20 +28,24 @@ async def validate_connection(hass: HomeAssistant, data):
     slave_id = data[CONF_SLAVE_ID]
     
     client = ModbusTcpClient(host=host, port=port)
+    client.unit_id = slave_id  # Set the unit_id/slave_id before making the request
     
     try:
         await hass.async_add_executor_job(client.connect)
         # Try to read a register to verify connection
-        # Replace 1000 with a valid register from your wallbox
+        # Use a lambda to wrap the call to handle different pymodbus versions
         result = await hass.async_add_executor_job(
-            client.read_holding_registers, 1000, 1, slave_id
+            lambda: client.read_holding_registers(address=1000, count=1)
         )
         await hass.async_add_executor_job(client.close)
         
-        if result.isError():
+        if hasattr(result, 'isError') and result.isError():
             return False
         return True
     except ConnectionException:
+        return False
+    except Exception as ex:
+        _LOGGER.error("Error connecting to Olife Wallbox: %s", ex)
         return False
     finally:
         if client.connected:

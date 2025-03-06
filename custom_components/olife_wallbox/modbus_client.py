@@ -17,6 +17,7 @@ class OlifeWallboxModbusClient:
         self._port = port
         self._slave_id = slave_id
         self._client = ModbusTcpClient(host=host, port=port)
+        self._client.unit_id = slave_id  # Set the unit_id/slave_id during initialization
         self._lock = asyncio.Lock()
         self._connected = False
         self._last_connect_attempt = datetime.min
@@ -67,20 +68,25 @@ class OlifeWallboxModbusClient:
 
         try:
             async with self._lock:
+                # Ensure unit_id is set before each request
+                self._client.unit_id = self._slave_id
+                # Use named parameters for compatibility
                 result = await asyncio.get_event_loop().run_in_executor(
                     None, 
-                    lambda: self._client.read_holding_registers(
-                        address, count, slave=self._slave_id
-                    )
+                    lambda: self._client.read_holding_registers(address=address, count=count)
                 )
                 
-                if result.isError():
+                if hasattr(result, 'isError') and result.isError():
                     _LOGGER.error("Error reading register %s: %s", address, result)
                     return None
                     
                 return result.registers
         except (ConnectionException, ModbusException) as ex:
             _LOGGER.error("Error reading register %s: %s", address, ex)
+            self._connected = False
+            return None
+        except Exception as ex:
+            _LOGGER.error("Unexpected error reading register %s: %s", address, ex)
             self._connected = False
             return None
 
@@ -91,19 +97,24 @@ class OlifeWallboxModbusClient:
 
         try:
             async with self._lock:
+                # Ensure unit_id is set before each request
+                self._client.unit_id = self._slave_id
+                # Use named parameters for compatibility
                 result = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: self._client.write_register(
-                        address, value, slave=self._slave_id
-                    )
+                    lambda: self._client.write_register(address=address, value=value)
                 )
                 
-                if result.isError():
+                if hasattr(result, 'isError') and result.isError():
                     _LOGGER.error("Error writing to register %s: %s", address, result)
                     return False
                     
                 return True
         except (ConnectionException, ModbusException) as ex:
             _LOGGER.error("Error writing to register %s: %s", address, ex)
+            self._connected = False
+            return False
+        except Exception as ex:
+            _LOGGER.error("Unexpected error writing to register %s: %s", address, ex)
             self._connected = False
             return False 
