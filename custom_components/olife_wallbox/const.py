@@ -13,6 +13,22 @@ FAST_SCAN_INTERVAL = 5
 CONF_SLAVE_ID = "slave_id"
 CONF_SCAN_INTERVAL = "scan_interval"
 
+# Advanced configuration options
+CONF_ENABLE_PHASE_SENSORS = "enable_phase_sensors"
+CONF_ENABLE_ERROR_SENSORS = "enable_error_sensors"
+CONF_ENABLE_DAILY_ENERGY = "enable_daily_energy"
+CONF_ENABLE_MONTHLY_ENERGY = "enable_monthly_energy"
+CONF_ENABLE_YEARLY_ENERGY = "enable_yearly_energy"
+CONF_READ_ONLY = "read_only"
+
+# Default values for options
+DEFAULT_ENABLE_PHASE_SENSORS = True
+DEFAULT_ENABLE_ERROR_SENSORS = True
+DEFAULT_ENABLE_DAILY_ENERGY = True
+DEFAULT_ENABLE_MONTHLY_ENERGY = True
+DEFAULT_ENABLE_YEARLY_ENERGY = True
+DEFAULT_READ_ONLY = False
+
 # Modbus registers
 # Read-Write registers
 REG_CURRENT_LIMIT = 2106       # Current limit setting

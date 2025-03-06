@@ -36,6 +36,19 @@ This custom integration allows you to monitor and control your Olife Energy Wall
 2. Search for "Olife Energy Wallbox"
 3. Enter the IP address and other required configuration details
 
+### Advanced Configuration Options
+
+The integration offers several advanced configuration options that can be accessed by going to:
+Settings > Devices & Services > Olife Energy Wallbox > Configure
+
+Available options include:
+
+- **Read-Only Mode**: When enabled, the integration will only provide sensors for monitoring and will not create any controls that could modify the Wallbox state
+- **Scan Interval**: How frequently the integration checks for updates (5-300 seconds)
+- **Enable Phase Sensors**: Turn on/off detailed per-phase electrical measurements
+- **Enable Error Sensors**: Turn on/off error code and CP state sensors
+- **Energy Tracking**: Enable/disable daily, monthly, and yearly energy tracking sensors
+
 ## Available Sensors
 
 ### Status Sensors
