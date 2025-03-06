@@ -34,10 +34,9 @@ jobs:
         run: |
           # Create a temporary directory
           TEMP_DIR=$(mktemp -d)
-          mkdir -p $TEMP_DIR/custom_components
           
-          # Copy files to the temp directory with the proper structure
-          cp -r custom_components/olife_wallbox $TEMP_DIR/custom_components/
+          # Copy files directly to the root of the temp directory
+          cp -r custom_components/olife_wallbox/* $TEMP_DIR/
           cp README.md $TEMP_DIR/
           
           # Create the zip file from the temp directory
