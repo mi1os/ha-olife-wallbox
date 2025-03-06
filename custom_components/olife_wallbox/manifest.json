@@ -7,5 +7,8 @@
   "requirements": ["pymodbus>=3.0.0"],
   "config_flow": true,
   "iot_class": "local_polling",
-  "version": "0.1.0"
+  "version": "0.2.0",
+  "quality_scale": "silver",
+  "issue_tracker": "https://github.com/yourusername/olife_wallbox/issues",
+  "diagnostics": true
 } 

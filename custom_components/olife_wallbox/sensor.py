@@ -74,6 +74,14 @@ def start_of_next_month() -> datetime:
         datetime(year, month, 1, tzinfo=now.tzinfo)
     )
 
+def start_of_next_year() -> datetime:
+    """Return a datetime object representing the start of the next year."""
+    now = dt_util.now()
+    year = now.year + 1
+    return dt_util.start_of_local_day(
+        datetime(year, 1, 1, tzinfo=now.tzinfo)
+    )
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
@@ -160,6 +168,7 @@ async def async_setup_entry(
         OlifeWallboxChargePowerSensor(coordinator, name, "charge_power", device_info, device_unique_id),
         OlifeWallboxDailyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
         OlifeWallboxMonthlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
+        OlifeWallboxYearlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
     ]
     
     async_add_entities(entities)
@@ -417,6 +426,13 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         """Handle entity which will be added."""
         await super().async_added_to_hass()
         
+        # Listen for reset events from the service
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                f"{DOMAIN}_reset_counter", self._handle_reset_event
+            )
+        )
+        
         # Restore previous state if available
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
@@ -446,6 +462,19 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         
         # Register coordinator update callback
         self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
+
+    @callback
+    def _handle_reset_event(self, event):
+        """Handle reset event from service."""
+        if (
+            event.data
+            and "entity_id" in event.data
+            and "device_id" in event.data
+            and self.entity_id == event.data["entity_id"]
+        ):
+            _LOGGER.info("Resetting daily energy counter from service call")
+            self._daily_energy = 0.0
+            self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -529,47 +558,68 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
-        self._unsub_monthly = None
-        self._this_month = dt_util.now().date().replace(day=1)
+        self._unsub_month = None
+        self._month = dt_util.now().month
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
         await super().async_added_to_hass()
+        
+        # Listen for reset events from the service
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                f"{DOMAIN}_reset_counter", self._handle_reset_event
+            )
+        )
         
         # Restore previous state if available
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             try:
                 self._monthly_energy = float(last_state.state)
-                # Get the date from the attributes if available
-                if "date" in last_state.attributes:
-                    stored_date = dt_util.parse_date(last_state.attributes["date"])
-                    if stored_date and stored_date != self._this_month:
-                        _LOGGER.debug("Resetting monthly energy counter due to date change")
+                # Get the month from the attributes if available
+                if "month" in last_state.attributes:
+                    stored_month = last_state.attributes["month"]
+                    current_month = dt_util.now().month
+                    if stored_month != current_month:
+                        _LOGGER.debug("Resetting monthly energy counter due to month change")
                         self._monthly_energy = 0.0
             except (ValueError, TypeError) as ex:
                 _LOGGER.warning("Failed to restore monthly energy state: %s", ex)
         
-        # Register a monthly callback to reset the counter at the start of the month
+        # Register a monthly callback to reset the counter at the first day of month
         @callback
-        def monthly_callback(_):
-            """Reset counter at the start of the month."""
+        def month_callback(_):
+            """Reset counter at the first day of month."""
             self._monthly_energy = 0.0
-            self._this_month = dt_util.now().date().replace(day=1)
+            self._month = dt_util.now().month
             self.async_write_ha_state()
-            _LOGGER.debug("Monthly energy counter reset at the start of the month")
+            _LOGGER.debug("Monthly energy counter reset at first day of month")
             
             # Re-register for next month
-            self._unsub_monthly = async_track_point_in_time(
-                self.hass, monthly_callback, start_of_next_month()
+            self._unsub_month = async_track_point_in_time(
+                self.hass, month_callback, start_of_next_month()
             )
             
-        self._unsub_monthly = async_track_point_in_time(
-            self.hass, monthly_callback, start_of_next_month()
+        self._unsub_month = async_track_point_in_time(
+            self.hass, month_callback, start_of_next_month()
         )
         
         # Register coordinator update callback
         self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
+
+    @callback
+    def _handle_reset_event(self, event):
+        """Handle reset event from service."""
+        if (
+            event.data
+            and "entity_id" in event.data
+            and "device_id" in event.data
+            and self.entity_id == event.data["entity_id"]
+        ):
+            _LOGGER.info("Resetting monthly energy counter from service call")
+            self._monthly_energy = 0.0
+            self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -580,8 +630,8 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
     async def async_will_remove_from_hass(self):
         """When entity is being removed from hass."""
         await super().async_will_remove_from_hass()
-        if self._unsub_monthly is not None:
-            self._unsub_monthly()
+        if self._unsub_month is not None:
+            self._unsub_month()
 
     @property
     def name(self):
@@ -602,7 +652,8 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
     def extra_state_attributes(self):
         """Return additional state attributes."""
         return {
-            "date": self._this_month.isoformat(),
+            "date": dt_util.now().date().isoformat(),
+            "month": dt_util.now().month,
             "last_reset": start_of_local_month().isoformat(),
         }
 
@@ -635,6 +686,156 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
                 self._last_energy
             )
             self._monthly_energy += self._last_energy
+            self._last_energy = current_energy
+        else:
+            # Session continuing - update the last energy value
+            self._last_energy = current_energy
+            
+        self.async_write_ha_state() 
+
+class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
+    """Sensor for Olife Energy Wallbox yearly charge energy."""
+
+    def __init__(self, coordinator, name, key, device_info, device_unique_id):
+        """Initialize the yearly energy sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._yearly_energy = 0.0
+        self._last_energy = None
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._unsub_yearly = None
+        self._this_year = dt_util.now().date().replace(month=1, day=1)
+
+    async def async_added_to_hass(self):
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        
+        # Listen for reset events from the service
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                f"{DOMAIN}_reset_counter", self._handle_reset_event
+            )
+        )
+        
+        # Restore previous state if available
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            try:
+                self._yearly_energy = float(last_state.state)
+                # Get the date from the attributes if available
+                if "date" in last_state.attributes:
+                    stored_date = dt_util.parse_date(last_state.attributes["date"])
+                    if stored_date and stored_date.year != self._this_year.year:
+                        _LOGGER.debug("Resetting yearly energy counter due to year change")
+                        self._yearly_energy = 0.0
+            except (ValueError, TypeError) as ex:
+                _LOGGER.warning("Failed to restore yearly energy state: %s", ex)
+        
+        # Register a yearly callback to reset the counter at the start of the year
+        @callback
+        def yearly_callback(_):
+            """Reset counter at the start of the year."""
+            self._yearly_energy = 0.0
+            self._this_year = dt_util.now().date().replace(month=1, day=1)
+            self.async_write_ha_state()
+            _LOGGER.debug("Yearly energy counter reset at the start of the year")
+            
+            # Re-register for next year
+            self._unsub_yearly = async_track_point_in_time(
+                self.hass, yearly_callback, start_of_next_year()
+            )
+            
+        self._unsub_yearly = async_track_point_in_time(
+            self.hass, yearly_callback, start_of_next_year()
+        )
+        
+        # Register coordinator update callback
+        self.async_on_remove(self.coordinator.async_add_listener(self._handle_coordinator_update))
+
+    @callback
+    def _handle_reset_event(self, event):
+        """Handle reset event from service."""
+        if (
+            event.data
+            and "entity_id" in event.data
+            and "device_id" in event.data
+            and self.entity_id == event.data["entity_id"]
+        ):
+            _LOGGER.info("Resetting yearly energy counter from service call")
+            self._yearly_energy = 0.0
+            self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self.hass.async_create_task(self._async_update())
+        super()._handle_coordinator_update()
+
+    async def async_will_remove_from_hass(self):
+        """When entity is being removed from hass."""
+        await super().async_will_remove_from_hass()
+        if self._unsub_yearly is not None:
+            self._unsub_yearly()
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Yearly Charge Energy"
+
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_yearly_{self._key}"
+
+    @property
+    def native_value(self):
+        """Return the yearly energy consumption."""
+        # Convert to kilowatt-hours
+        return round(self._yearly_energy / 1000.0, 2)
+        
+    @property
+    def extra_state_attributes(self):
+        """Return additional state attributes."""
+        # Get the first day of the current year
+        year_start = dt_util.start_of_local_day(
+            datetime(self._this_year.year, 1, 1, tzinfo=dt_util.now().tzinfo)
+        )
+        return {
+            "date": self._this_year.isoformat(),
+            "last_reset": year_start.isoformat(),
+            "total_watt_hours": round(self._yearly_energy, 2),
+        }
+
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:battery-charging-outline"
+
+    async def _async_update(self) -> None:
+        """Update the yearly energy counter using the session energy."""
+        if not self.available:
+            return
+            
+        current_energy = self.coordinator.data.get(self._key)
+        
+        if current_energy is None:
+            return
+            
+        # If this is the first reading, just store the value
+        if self._last_energy is None:
+            self._last_energy = current_energy
+            return
+            
+        # Check if the session energy has been reset (new session started)
+        # or increased (continuing session)
+        if current_energy < self._last_energy:
+            # New session - add the last complete session to the yearly total
+            _LOGGER.debug(
+                "New charging session detected. Adding %s Wh to yearly total.", 
+                self._last_energy
+            )
+            self._yearly_energy += self._last_energy
             self._last_energy = current_energy
         else:
             # Session continuing - update the last energy value
