@@ -43,15 +43,16 @@ jobs:
           
           if [ -z "$PREVIOUS_TAG" ]; then
             # If no previous tag exists, use the first commit
-            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-            echo "* Initial release" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            echo "CHANGELOG=* Initial release" >> $GITHUB_OUTPUT
           else
             # Generate changelog between tags
-            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-            git log --pretty=format:"* %s" $PREVIOUS_TAG..$CURRENT_TAG >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
             echo "Previous version was $PREVIOUS_TAG"
+            CHANGELOG=$(git log --pretty=format:"* %s" $PREVIOUS_TAG..$CURRENT_TAG)
+            # Use the correct way to set multiline outputs in GitHub Actions
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "CHANGELOG<<$EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "$EOF" >> $GITHUB_OUTPUT
           fi
 
       - name: Create ZIP file
@@ -82,7 +83,7 @@ jobs:
             # Olife Energy Wallbox Integration v${{ env.VERSION }}
             
             ## Changes in this version:
-            ${{ env.CHANGELOG }}
+            ${{ steps.changelog.outputs.CHANGELOG }}
             
             ## Installation
             
