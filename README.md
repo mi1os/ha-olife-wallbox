@@ -113,6 +113,38 @@ The integration provides the following device triggers for automations:
 
 This integration fully supports the Home Assistant Energy Dashboard. All energy sensors are properly configured with the correct device classes and state classes for automatic integration.
 
+## Custom Lovelace Card
+
+A custom Lovelace card is available for this integration, providing a beautiful and functional dashboard to monitor and control your Olife Energy Wallbox:
+
+![Olife Wallbox Card](https://raw.githubusercontent.com/mi1os/ha-olife-wallbox/main/www/community/lovelace-olife-wallbox-card/card-preview.png)
+
+### Card Installation
+
+#### HACS
+1. Add this repository as a custom repository in HACS Frontend section
+2. Install the "Olife Wallbox Card" from HACS
+
+#### Manual Installation
+1. Copy the `/www/community/lovelace-olife-wallbox-card/olife-wallbox-card.js` file to your Home Assistant `/www/` directory
+2. Add the resource in your Lovelace dashboard:
+   ```yaml
+   resources:
+     - url: /local/community/lovelace-olife-wallbox-card/olife-wallbox-card.js
+       type: module
+   ```
+3. Add the card to your dashboard:
+   ```yaml
+   type: custom:olife-wallbox-card
+   title: My Wallbox
+   entity: switch.olife_wallbox_charging
+   power_entity: sensor.olife_wallbox_charge_power
+   energy_entity: sensor.olife_wallbox_daily_charge_energy
+   current_limit_entity: number.olife_wallbox_current_limit
+   ```
+
+See the [card documentation](www/community/lovelace-olife-wallbox-card/README.md) for detailed configuration options.
+
 ## Troubleshooting
 
 The integration supports Home Assistant diagnostics, which can help with troubleshooting. To access diagnostics:
