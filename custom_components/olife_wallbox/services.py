@@ -27,6 +27,7 @@ SERVICE_SET_CURRENT_LIMIT = "set_current_limit"
 SERVICE_SET_MAX_CURRENT = "set_max_current" 
 SERVICE_SET_LED_BRIGHTNESS = "set_led_brightness"
 SERVICE_RESET_ENERGY_COUNTERS = "reset_energy_counters"
+SERVICE_RELOAD_INTEGRATION = "reload"
 
 # Service schemas
 WALLBOX_SERVICE_SCHEMA = vol.Schema(
@@ -261,6 +262,51 @@ async def _reset_energy_counters(hass: HomeAssistant, device_id: str,
                     })
                     _LOGGER.info("Reset event sent for %s", entity)
 
+async def _reload_integration(hass: HomeAssistant, device_id: str = None) -> None:
+    """Attempt to reload the integration entities without a full restart.
+    
+    This will disconnect and reconnect to the device, and refresh all entities.
+    Note: This can't replace a full restart for code changes, but may help refresh the integration state.
+    """
+    _LOGGER.info("Attempting to reload Olife Wallbox integration")
+    
+    # Get relevant entries
+    if device_id:
+        device_registry = dr.async_get(hass)
+        device = device_registry.async_get(device_id)
+        if device:
+            # Get the config entry for this device
+            config_entries = [
+                entry_id for entry_id in device.config_entries 
+                if entry_id in hass.config_entries.async_entries(DOMAIN)
+            ]
+        else:
+            _LOGGER.error(f"Device with ID {device_id} not found")
+            return
+    else:
+        # Reload all entries for this domain
+        config_entries = [
+            entry.entry_id for entry in hass.config_entries.async_entries(DOMAIN)
+        ]
+    
+    # Force reload each entry
+    success_count = 0
+    for entry_id in config_entries:
+        try:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            if entry:
+                # This won't reload code, but will reconnect to devices and refresh entities
+                _LOGGER.debug(f"Reloading config entry {entry.title} ({entry_id})")
+                await hass.config_entries.async_reload(entry_id)
+                success_count += 1
+        except Exception as ex:
+            _LOGGER.error(f"Error reloading entry {entry_id}: {ex}")
+    
+    if success_count > 0:
+        _LOGGER.info(f"Successfully reloaded {success_count} Olife Wallbox integration(s)")
+    else:
+        _LOGGER.warning("No Olife Wallbox integrations were reloaded")
+
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up services for Olife Wallbox."""
     
@@ -293,6 +339,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             call.data.get("monthly", True),
             call.data.get("yearly", True)
         )
+        
+    async def handle_reload_integration(call: ServiceCall) -> None:
+        """Handle the reload_integration service call."""
+        if "device_id" in call.data:
+            await _reload_integration(hass, call.data["device_id"])
+        else:
+            await _reload_integration(hass)
     
     hass.services.async_register(
         DOMAIN, SERVICE_START_CHARGE, handle_start_charge, schema=WALLBOX_SERVICE_SCHEMA
@@ -317,6 +370,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_RESET_ENERGY_COUNTERS, handle_reset_energy_counters, schema=RESET_COUNTERS_SCHEMA
     )
+    
+    hass.services.async_register(
+        DOMAIN, SERVICE_RELOAD_INTEGRATION, handle_reload_integration, schema=vol.Schema({
+            vol.Optional("device_id"): cv.string,
+        })
+    )
 
 def async_unload_services(hass: HomeAssistant) -> None:
     """Unload Olife Wallbox services."""
@@ -327,5 +386,6 @@ def async_unload_services(hass: HomeAssistant) -> None:
         SERVICE_SET_MAX_CURRENT,
         SERVICE_SET_LED_BRIGHTNESS,
         SERVICE_RESET_ENERGY_COUNTERS,
+        SERVICE_RELOAD_INTEGRATION,
     ]:
         hass.services.async_remove(DOMAIN, service) 

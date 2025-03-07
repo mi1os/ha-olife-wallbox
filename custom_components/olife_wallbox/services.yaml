@@ -1,1 +1,174 @@
-# No custom services for now 
+# Service descriptions for Olife Energy Wallbox integration
+
+start_charge:
+  name: Start charge
+  description: Start charging on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: switch
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to start charging.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+
+stop_charge:
+  name: Stop charge
+  description: Stop charging on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: switch
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to stop charging.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+
+set_current_limit:
+  name: Set current limit
+  description: Set the charging current limit on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: number
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to set the current limit on.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+    current_limit:
+      name: Current limit
+      description: The charging current limit in amps (6-32A).
+      required: true
+      selector:
+        number:
+          min: 6.0
+          max: 32.0
+          step: 1.0
+          unit_of_measurement: A
+
+set_max_current:
+  name: Set maximum current
+  description: Set the maximum station current on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: number
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to set the maximum current on.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+    max_current:
+      name: Maximum current
+      description: The maximum station current in amps (6-63A).
+      required: true
+      selector:
+        number:
+          min: 6.0
+          max: 63.0
+          step: 1.0
+          unit_of_measurement: A
+
+set_led_brightness:
+  name: Set LED brightness
+  description: Set the LED brightness on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: number
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to set the LED brightness on.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+    brightness:
+      name: Brightness
+      description: The LED brightness level (0-1000).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 25
+
+reset_energy_counters:
+  name: Reset energy counters
+  description: Reset energy counters on an Olife Energy Wallbox.
+  target:
+    entity:
+      domain: sensor
+      integration: olife_wallbox
+    device:
+      integration: olife_wallbox
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the Olife Energy Wallbox device to reset energy counters on.
+      required: true
+      selector:
+        device:
+          integration: olife_wallbox
+    daily:
+      name: Daily counters
+      description: Whether to reset daily energy counters.
+      required: false
+      default: true
+      selector:
+        boolean:
+    monthly:
+      name: Monthly counters
+      description: Whether to reset monthly energy counters.
+      required: false
+      default: true
+      selector:
+        boolean:
+    yearly:
+      name: Yearly counters
+      description: Whether to reset yearly energy counters.
+      required: false
+      default: true
+      selector:
+        boolean:
+
+reload:
+  name: Reload integration
+  description: >
+    Reload the Olife Energy Wallbox integration entities without restarting Home Assistant.
+    Note that this does not update installed code - a full restart is required after updating the integration files.
+    This service is useful for reconnecting to devices after network interruptions or device restarts.
+  fields:
+    device_id:
+      name: Device
+      description: The ID of the specific Olife Energy Wallbox device to reload. If not specified, all devices will be reloaded.
+      required: false
+      selector:
+        device:
+          integration: olife_wallbox 
