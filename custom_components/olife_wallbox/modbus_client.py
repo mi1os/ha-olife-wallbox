@@ -59,8 +59,13 @@ class OlifeWallboxModbusClient:
 
     async def connect(self):
         """Connect to the Modbus device with retry logic."""
-        if self._connected:
-            return True
+        if self._connected and self._client is not None:
+            # Check if the connection is still alive with a lightweight check
+            if await self._check_connection():
+                return True
+            else:
+                _LOGGER.debug("Connection check failed, reconnecting")
+                self._connected = False
 
         # Implement backoff for repeated connection failures
         now = datetime.now()
@@ -385,3 +390,53 @@ class OlifeWallboxModbusClient:
     def last_successful_connection(self) -> datetime:
         """Return the timestamp of the last successful connection."""
         return self._last_successful_connection 
+
+    async def _check_connection(self) -> bool:
+        """Check if the connection is still alive without reconnecting.
+        
+        This method performs a lightweight check to determine if the connection
+        is still viable, without the overhead of a full reconnection.
+        """
+        # If the connection was never established or explicitly disconnected
+        if not self._connected or self._client is None:
+            return False
+            
+        # If the last successful connection was too long ago, force a check
+        now = datetime.now()
+        if now - self._last_successful_connection > timedelta(minutes=5):
+            # Too long since last known good connection, force a full check
+            _LOGGER.debug("Connection may be stale, performing verification")
+            try:
+                # Try to read a register that's unlikely to cause issues
+                # This will verify the connection is working
+                async with self._lock:
+                    try:
+                        # Try newer API pattern first
+                        result = await asyncio.get_event_loop().run_in_executor(
+                            None, 
+                            lambda: self._client.read_holding_registers(2104, count=1)
+                        )
+                    except TypeError:
+                        try:
+                            # Try older API pattern
+                            result = await asyncio.get_event_loop().run_in_executor(
+                                None, 
+                                lambda: self._client.read_holding_registers(2104, 1)
+                            )
+                        except Exception as e:
+                            _LOGGER.debug("Connection check failed: %s", e)
+                            return False
+                    
+                    if result is None or (hasattr(result, 'isError') and result.isError()):
+                        _LOGGER.debug("Connection check failed: invalid response")
+                        return False
+                    
+                    # Update last successful connection time
+                    self._last_successful_connection = now
+                    return True
+            except Exception as ex:
+                _LOGGER.debug("Connection check failed: %s", ex)
+                return False
+        
+        # Connection is presumed to be valid
+        return True 

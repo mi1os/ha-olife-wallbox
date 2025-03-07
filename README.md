@@ -96,6 +96,7 @@ This integration provides the following services:
 - `olife_wallbox.set_max_current`: Set the maximum allowed charging current (0-63A)
 - `olife_wallbox.set_led_brightness`: Set the LED brightness level (0-1000)
 - `olife_wallbox.reset_energy_counters`: Reset energy counters (daily, monthly, or yearly)
+- `olife_wallbox.reload`: Reload the integration without restarting Home Assistant (useful for reconnecting after network issues)
 
 ## Automation Triggers
 

@@ -20,17 +20,29 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    device_id = None
-    
-    # Get device info
-    device_reg = dr.async_get(hass)
-    entity_reg = er.async_get(hass)
-    
-    # Find device for this entry
-    device_entries = []
-    for device in dr.async_entries_for_config_entry(device_reg, entry.entry_id):
-        device_id = device.id
+    data = {
+        "entry": {
+            "title": entry.title,
+            "data": async_redact_data(dict(entry.data), REDACT_CONFIG),
+            "options": dict(entry.options),
+            "entry_id": entry.entry_id,
+            "domain": entry.domain,
+            "source": str(entry.source),
+            "version": entry.version,
+        },
+        "statistics": {
+            "connection": {},
+            "entities": {},
+            "modbus": {}
+        }
+    }
+
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+
+    # Get device diagnostics
+    data["devices"] = []
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
         device_info = {
             "id": device.id,
             "name": device.name,
@@ -38,47 +50,60 @@ async def async_get_config_entry_diagnostics(
             "manufacturer": device.manufacturer,
             "sw_version": device.sw_version,
         }
-        device_entries.append(device_info)
-        
-    # Get entities for this device
-    entity_entries = []
-    if device_id:
-        for entity_entry in er.async_entries_for_device(entity_reg, device_id):
-            entity_info = {
-                "entity_id": entity_entry.entity_id,
-                "name": entity_entry.name,
-                "domain": entity_entry.domain,
-                "platform": entity_entry.platform,
-                "unique_id": entity_entry.unique_id,
-                "original_name": entity_entry.original_name,
-                "disabled": entity_entry.disabled,
-            }
-            entity_entries.append(entity_info)
-    
-    # Get device clients if possible
-    try:
-        device_id_parts = device_id.split("_")
-        host, port, slave_id = data.get(CONF_HOST), data.get("port"), data.get(CONF_SLAVE_ID)
-        
-        # Attempt to create a Modbus client for diagnostics but don't connect
-        from .modbus_client import OlifeWallboxModbusClient
-        client = OlifeWallboxModbusClient(host, port, slave_id)
-        
-        client_info = {
-            "connection_errors": client._connection_errors,
-            "consecutive_errors": client._consecutive_errors,
-            "last_connection_attempt": client._last_connect_attempt.isoformat() if client._last_connect_attempt != datetime.min else None,
-            "last_successful_connection": client._last_successful_connection.isoformat() if client._last_successful_connection != datetime.min else None,
+        data["devices"].append(device_info)
+
+    # Get entity diagnostics
+    data["entities"] = []
+    for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        entity_info = {
+            "id": entity.entity_id,
+            "name": entity.name,
+            "original_name": entity.original_name,
+            "domain": entity.domain,
+            "disabled": entity.disabled,
+            "device_id": entity.device_id,
+            "unique_id": entity.unique_id,
         }
-    except (KeyError, IndexError, AttributeError, ImportError) as ex:
-        client_info = {"error": str(ex)}
+        data["entities"].append(entity_info)
+        
+    # Get client info and statistics if available
+    if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+        coordinator = hass.data[DOMAIN][entry.entry_id].get("coordinator")
+        client = hass.data[DOMAIN][entry.entry_id].get("client")
+        
+        if client:
+            # Add connection statistics
+            data["statistics"]["connection"] = {
+                "connected": client._connected,
+                "connection_errors": client.connection_errors,
+                "consecutive_errors": client.consecutive_errors,
+                "last_successful_connection": client.last_successful_connection.isoformat() if client.last_successful_connection else None,
+                "last_connect_attempt": client._last_connect_attempt.isoformat() if hasattr(client, "_last_connect_attempt") else None,
+            }
+            
+            # Add modbus statistics
+            data["statistics"]["modbus"] = {
+                "host": async_redact_data({"host": client._host}, TO_REDACT)["host"],
+                "port": client._port,
+                "slave_id": client._client.unit_id if client._client else None,
+            }
+            
+        if coordinator:
+            # Add entity data from coordinator
+            data["statistics"]["entities"] = {
+                "last_update_success": coordinator.last_update_success,
+                "last_update": coordinator.last_update.isoformat() if coordinator.last_update else None,
+                "data": coordinator.data if coordinator.data else {},
+            }
+            
+        # Check all entities for error counts
+        data["statistics"]["entity_errors"] = {}
+        for entity_entry in data["entities"]:
+            entity_id = entity_entry["id"]
+            entity = hass.states.get(entity_id)
+            if entity and entity.domain in ["switch", "number", "sensor", "select"]:
+                entity_obj = hass.data.get("entity_components", {}).get(entity.domain, {}).get(entity_id)
+                if entity_obj and hasattr(entity_obj, "_error_count"):
+                    data["statistics"]["entity_errors"][entity_id] = entity_obj._error_count
     
-    diagnostics_data = {
-        "config_entry": async_redact_data(entry.as_dict(), TO_REDACT),
-        "config_data": async_redact_data(dict(data), TO_REDACT),
-        "device_info": device_entries,
-        "entity_info": entity_entries,
-        "client_info": client_info,
-    }
-    
-    return diagnostics_data 
+    return data 

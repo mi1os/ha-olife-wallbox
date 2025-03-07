@@ -3,6 +3,7 @@ import logging
 from datetime import timedelta, datetime
 from typing import Optional, Any, Dict
 import async_timeout
+import asyncio
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -152,10 +153,29 @@ async def async_setup_entry(
     )
     
     async def async_update_data():
-        """Fetch data from the Olife Energy Wallbox."""
+        """Fetch data from API endpoint."""
         try:
-            # First ensure connection
-            await client.connect()
+            # Check if client is available and try to connect if not
+            if not client._connected:
+                if not await client.connect():
+                    _LOGGER.warning("Failed to connect to device, some sensors may be unavailable")
+            
+            # If we still have too many consecutive errors, try to reset the connection
+            if client.consecutive_errors > 5:
+                _LOGGER.warning(
+                    "Detected %s consecutive errors, attempting to reset connection",
+                    client.consecutive_errors
+                )
+                await client.disconnect()
+                await asyncio.sleep(1)
+                if not await client.connect():
+                    _LOGGER.error("Failed to reset connection after multiple errors")
+                    return {}
+                else:
+                    _LOGGER.info("Successfully reset connection after multiple errors")
+            
+            # Create a data object to store all fetched values
+            data = {}
             
             # Read wallbox state
             wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
@@ -177,8 +197,6 @@ async def async_setup_entry(
             
             # Read charge power
             charge_power = await client.read_holding_registers(REG_CHARGE_POWER, 1)
-            
-            data = {}
             
             if wallbox_ev_state is not None:
                 data["wallbox_ev_state"] = wallbox_ev_state[0]
@@ -278,7 +296,7 @@ async def async_setup_entry(
                     data["energy_l2"] = energy_phases[1]
                 if energy_phases[2] is not None:
                     data["energy_l3"] = energy_phases[2]
-                
+            
             return data
         except Exception as ex:
             _LOGGER.error("Error fetching Olife Energy Wallbox data: %s", ex)
