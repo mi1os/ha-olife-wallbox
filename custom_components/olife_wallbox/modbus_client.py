@@ -247,7 +247,19 @@ class OlifeWallboxModbusClient:
         return None
 
     async def write_register(self, address, value) -> bool:
-        """Write to a holding register with retry mechanism."""
+        """Write to a holding register with retry mechanism.
+        
+        Note: This method uses Function Code 6 (0x06) - Write Single Register.
+        If your device requires Function Code 16 (0x10), use write_registers instead.
+        """
+        # Redirect to write_registers which uses Function Code 16 (0x10)
+        return await self.write_registers(address, [value])
+        
+    async def write_registers(self, address, values) -> bool:
+        """Write to holding registers with retry mechanism using Function Code 16 (0x10).
+        
+        This method uses Function Code 16 (Preset Multiple Registers) as required by some Modbus devices.
+        """
         for retry in range(MAX_RETRIES):
             if not await self.connect():
                 if retry < MAX_RETRIES - 1:
@@ -263,8 +275,8 @@ class OlifeWallboxModbusClient:
                 async with self._lock:
                     # Log the write operation
                     _LOGGER.debug(
-                        "Writing value %s to register %s", 
-                        value, address
+                        "Writing values %s to registers starting at %s", 
+                        values, address
                     )
                     
                     # Start timing the request
@@ -273,25 +285,30 @@ class OlifeWallboxModbusClient:
                     # Use a compatibility layer for different pymodbus versions
                     try:
                         # Try newer API pattern first
+                        _LOGGER.debug("Attempting to write values %s to register %s using newer API pattern (Function Code 16)", values, address)
                         result = await asyncio.get_event_loop().run_in_executor(
                             None,
-                            lambda: self._client.write_register(address, values=value)
+                            lambda: self._client.write_registers(address, values=values)
                         )
-                    except TypeError:
+                    except TypeError as te:
+                        _LOGGER.debug("TypeError with newer API pattern: %s. Trying older pattern.", te)
                         try:
                             # Try older API pattern
                             result = await asyncio.get_event_loop().run_in_executor(
                                 None,
-                                lambda: self._client.write_register(address, value)
+                                lambda: self._client.write_registers(address, values)
                             )
                         except Exception as e:
-                            _LOGGER.error("Failed to write register: %s", e)
+                            _LOGGER.error("Failed to write registers with older API pattern: %s", e)
                             return False
+                    except Exception as e:
+                        _LOGGER.error("Failed to write registers with newer API pattern: %s", e)
+                        return False
                     
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
                     _LOGGER.debug(
-                        "Write to register %s completed in %.3f seconds",
+                        "Write to registers starting at %s completed in %.3f seconds",
                         address, elapsed
                     )
                     
@@ -305,18 +322,18 @@ class OlifeWallboxModbusClient:
                             exception_code, f"Unknown exception code: {exception_code}"
                         )
                         _LOGGER.error(
-                            "Modbus exception writing to register %s: %s", 
+                            "Modbus exception writing to registers starting at %s: %s", 
                             address, exception_msg
                         )
                         return False
                     
                     if hasattr(result, 'isError') and result.isError():
-                        _LOGGER.error("Error writing to register %s: %s", address, result)
+                        _LOGGER.error("Error writing to registers starting at %s: %s", address, result)
                         return False
                     
                     _LOGGER.debug(
-                        "Successfully wrote value %s to register %s",
-                        value, address
+                        "Successfully wrote values %s to registers starting at %s",
+                        values, address
                     )
                     return True
             except (ConnectionException, ModbusException) as ex:
@@ -325,24 +342,24 @@ class OlifeWallboxModbusClient:
                 
                 if retry < MAX_RETRIES - 1:
                     _LOGGER.warning(
-                        "Error writing to register %s: %s. Retrying in %s seconds (attempt %s/%s)",
+                        "Error writing to registers starting at %s: %s. Retrying in %s seconds (attempt %s/%s)",
                         address, ex, RETRY_DELAY, retry + 1, MAX_RETRIES
                     )
                     await asyncio.sleep(RETRY_DELAY)
                 else:
                     _LOGGER.error(
-                        "Failed to write to register %s after %s attempts: %s",
+                        "Failed to write to registers starting at %s after %s attempts: %s",
                         address, MAX_RETRIES, ex
                     )
                     return False
             except asyncio.CancelledError:
-                _LOGGER.debug("Write operation cancelled for register %s", address)
+                _LOGGER.debug("Write operation cancelled for registers starting at %s", address)
                 raise  # Re-raise cancellation to properly handle it
             except Exception as ex:
                 self._consecutive_errors += 1
                 self._connected = False
                 _LOGGER.error(
-                    "Unexpected error writing to register %s: %s",
+                    "Unexpected error writing to registers starting at %s: %s",
                     address, ex
                 )
                 if retry < MAX_RETRIES - 1:

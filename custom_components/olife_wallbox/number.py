@@ -152,27 +152,37 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
             raise HomeAssistantError("Cannot set current limit: Device unavailable")
             
         try:
-            _LOGGER.debug("Setting current limit to: %.1f A", value)
-            scaled_value = int(value)  # No scaling needed for the actual registers
+            _LOGGER.debug("Setting current limit to: %s (type: %s)", value, type(value))
+            # Ensure value is an integer
+            scaled_value = int(round(float(value)))
+            _LOGGER.debug("Converted current limit value to integer: %s", scaled_value)
+            
+            # Ensure value is within valid range
+            if scaled_value < 6:
+                scaled_value = 6
+                _LOGGER.warning("Current limit value below minimum, setting to 6")
+            elif scaled_value > 32:
+                scaled_value = 32
+                _LOGGER.warning("Current limit value above maximum, setting to 32")
             
             if await self._client.write_register(REG_CURRENT_LIMIT, scaled_value):
                 self._value = value
                 self._error_count = 0
-                _LOGGER.info("Current limit set to: %.1f A", value)
+                _LOGGER.info("Current limit set to: %s", value)
                 self.async_write_ha_state()
             else:
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.error(
-                        "Failed to set current limit to %.1f A (error count: %s)",
+                        "Failed to set current limit to %s (error count: %s)",
                         value, self._error_count
                     )
-                raise HomeAssistantError(f"Failed to set current limit to {value} A")
+                raise HomeAssistantError(f"Failed to set current limit to {value}")
         except Exception as ex:
             self._error_count += 1
             if self._should_log_error():
                 _LOGGER.error(
-                    "Error setting current limit to %.1f A: %s (error count: %s)",
+                    "Error setting current limit to %s: %s (error count: %s)",
                     value, ex, self._error_count
                 )
             raise HomeAssistantError(f"Error setting current limit: {ex}")
@@ -247,8 +257,18 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
             raise HomeAssistantError("Cannot set LED brightness: Device unavailable")
             
         try:
-            _LOGGER.debug("Setting LED brightness to: %s", value)
-            scaled_value = int(value)
+            _LOGGER.debug("Setting LED brightness to: %s (type: %s)", value, type(value))
+            # Ensure value is an integer
+            scaled_value = int(round(float(value)))
+            _LOGGER.debug("Converted LED brightness value to integer: %s", scaled_value)
+            
+            # Ensure value is within valid range
+            if scaled_value < 0:
+                scaled_value = 0
+                _LOGGER.warning("LED brightness value below minimum, setting to 0")
+            elif scaled_value > 1000:
+                scaled_value = 1000
+                _LOGGER.warning("LED brightness value above maximum, setting to 1000")
             
             if await self._client.write_register(REG_LED_PWM, scaled_value):
                 self._value = value
@@ -347,27 +367,37 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             raise HomeAssistantError("Cannot set max station current: Device unavailable")
             
         try:
-            _LOGGER.debug("Setting max station current to: %.1f A", value)
-            scaled_value = int(value)
+            _LOGGER.debug("Setting max station current to: %s (type: %s)", value, type(value))
+            # Ensure value is an integer
+            scaled_value = int(round(float(value)))
+            _LOGGER.debug("Converted max station current value to integer: %s", scaled_value)
+            
+            # Ensure value is within valid range
+            if scaled_value < 6:
+                scaled_value = 6
+                _LOGGER.warning("Max station current value below minimum, setting to 6")
+            elif scaled_value > 63:
+                scaled_value = 63
+                _LOGGER.warning("Max station current value above maximum, setting to 63")
             
             if await self._client.write_register(REG_MAX_STATION_CURRENT, scaled_value):
                 self._value = value
                 self._error_count = 0
-                _LOGGER.info("Max station current set to: %.1f A", value)
+                _LOGGER.info("Max station current set to: %s", value)
                 self.async_write_ha_state()
             else:
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.error(
-                        "Failed to set max station current to %.1f A (error count: %s)",
+                        "Failed to set max station current to %s (error count: %s)",
                         value, self._error_count
                     )
-                raise HomeAssistantError(f"Failed to set max station current to {value} A")
+                raise HomeAssistantError(f"Failed to set max station current to {value}")
         except Exception as ex:
             self._error_count += 1
             if self._should_log_error():
                 _LOGGER.error(
-                    "Error setting max station current to %.1f A: %s (error count: %s)",
+                    "Error setting max station current to %s: %s (error count: %s)",
                     value, ex, self._error_count
                 )
             raise HomeAssistantError(f"Error setting max station current: {ex}")
