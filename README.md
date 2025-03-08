@@ -6,6 +6,8 @@ This custom integration allows you to monitor and control your Olife Energy Wall
 
 - **Real-time Monitoring**: Detailed status monitoring with human-readable state descriptions
 - **Multi-phase Support**: Individual current, voltage, power, and energy readings for each phase
+- **Multi-connector Support**: Automatic detection and management of dual connector Wallbox stations
+- **Device Information**: Hardware/software version, serial number, and model identification
 - **Comprehensive Energy Tracking**: Daily, monthly, and yearly energy statistics
 - **Error Diagnostic Tools**: Detailed error reporting with binary flag decoding
 - **Control Pilot Monitoring**: Track the communication state between your charger and vehicle
@@ -48,6 +50,15 @@ Available options include:
 - **Enable Phase Sensors**: Turn on/off detailed per-phase electrical measurements
 - **Enable Error Sensors**: Turn on/off error code and CP state sensors
 - **Energy Tracking**: Enable/disable daily, monthly, and yearly energy tracking sensors
+
+## Multi-connector Support
+
+This integration automatically detects the number of connectors (charging cables) your Olife Wallbox has:
+
+- Single connector Wallboxes use registers 2000-2026 and 4000-4019
+- Dual connector Wallboxes have a second set of registers 2100-2126 and 4100-4119
+
+For dual connector installations, entities are created for each connector and clearly labeled with "Connector 1" and "Connector 2" suffixes. Each connector appears as a separate device in Home Assistant, allowing for easy identification and control.
 
 ## Available Sensors
 

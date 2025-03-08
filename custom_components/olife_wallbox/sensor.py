@@ -109,49 +109,44 @@ def start_of_next_year() -> datetime:
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    """Set up the Olife Energy Wallbox sensor platform."""
-    name = entry.data[CONF_NAME]
-    host = entry.data[CONF_HOST]
-    port = entry.data[CONF_PORT]
-    slave_id = entry.data[CONF_SLAVE_ID]
+    """Set up the Olife Energy Wallbox sensors."""
+    # Get configuration and data from entry
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    client = entry_data.get("client")
+    device_info = entry_data.get("device_info", {})
     
-    # Get the scan interval from options if available, otherwise from config data
-    scan_interval = entry.options.get(
-        CONF_SCAN_INTERVAL, 
-        entry.data.get(CONF_SCAN_INTERVAL, FAST_SCAN_INTERVAL)
-    )
-    
-    # Get sensor group configuration from options
-    enable_phase_sensors = entry.options.get(
-        CONF_ENABLE_PHASE_SENSORS, True
-    )
-    enable_error_sensors = entry.options.get(
-        CONF_ENABLE_ERROR_SENSORS, True
-    )
-    enable_daily_energy = entry.options.get(
-        CONF_ENABLE_DAILY_ENERGY, True
-    )
-    enable_monthly_energy = entry.options.get(
-        CONF_ENABLE_MONTHLY_ENERGY, True
-    )
-    enable_yearly_energy = entry.options.get(
-        CONF_ENABLE_YEARLY_ENERGY, True
-    )
-    
-    client = OlifeWallboxModbusClient(host, port, slave_id)
+    # Get the number of connectors from device info
+    num_connectors = device_info.get("num_connectors", 1)
     
     # Create a unique ID for the device
+    host = entry.data[CONF_HOST]
+    port = entry.data.get(CONF_PORT, 502)
+    slave_id = entry.data.get(CONF_SLAVE_ID, 1)
     device_unique_id = f"{host}_{port}_{slave_id}"
     
-    # Create device info
-    device_info = DeviceInfo(
+    # Get device name
+    name = entry.data.get(CONF_NAME, "Olife Wallbox")
+    
+    # Get configuration options
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    enable_phase_sensors = entry.options.get(CONF_ENABLE_PHASE_SENSORS, DEFAULT_ENABLE_PHASE_SENSORS)
+    enable_error_sensors = entry.options.get(CONF_ENABLE_ERROR_SENSORS, DEFAULT_ENABLE_ERROR_SENSORS)
+    enable_daily_energy = entry.options.get(CONF_ENABLE_DAILY_ENERGY, DEFAULT_ENABLE_DAILY_ENERGY)
+    enable_monthly_energy = entry.options.get(CONF_ENABLE_MONTHLY_ENERGY, DEFAULT_ENABLE_MONTHLY_ENERGY)
+    enable_yearly_energy = entry.options.get(CONF_ENABLE_YEARLY_ENERGY, DEFAULT_ENABLE_YEARLY_ENERGY)
+    
+    # Create enhanced device info with the information we collected
+    enhanced_device_info = DeviceInfo(
         identifiers={(DOMAIN, device_unique_id)},
         name=name,
         manufacturer="Olife Energy",
-        model="Wallbox",
-        sw_version="2.0",  # Update with actual firmware version if available
+        model=device_info.get("model", "Wallbox"),
+        sw_version=device_info.get("sw_version", "Unknown"),
+        hw_version=device_info.get("hw_version", "Unknown"),
+        serial_number=device_info.get("serial_number", None),
     )
     
+    # Define update coordinator function
     async def async_update_data():
         """Fetch data from API endpoint."""
         try:
@@ -177,19 +172,20 @@ async def async_setup_entry(
             # Create a data object to store all fetched values
             data = {}
             
+            # First connector data (always available)
             # Read wallbox state
             wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
             
             # Read current limit
             current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT, 1)
             
-            # Read charging current
+            # Read charge current
             charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT, 1)
             
             # Read max station current
             max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             
-            # Read LED PWM
+            # Read LED PWM value
             led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
             
             # Read charge energy
@@ -198,26 +194,29 @@ async def async_setup_entry(
             # Read charge power
             charge_power = await client.read_holding_registers(REG_CHARGE_POWER, 1)
             
+            # Store first connector data
+            data["connector_1"] = {}
+            
             if wallbox_ev_state is not None:
-                data["wallbox_ev_state"] = wallbox_ev_state[0]
+                data["connector_1"]["wallbox_ev_state"] = wallbox_ev_state[0]
                 
             if current_limit is not None:
-                data["current_limit"] = current_limit[0]
+                data["connector_1"]["current_limit"] = current_limit[0]
                 
             if charge_current is not None:
-                data["charge_current"] = charge_current[0]
+                data["connector_1"]["charge_current"] = charge_current[0]
                 
             if max_station_current is not None:
-                data["max_station_current"] = max_station_current[0]
+                data["connector_1"]["max_station_current"] = max_station_current[0]
                 
             if led_pwm is not None:
-                data["led_pwm"] = led_pwm[0]
+                data["connector_1"]["led_pwm"] = led_pwm[0]
                 
             if charge_energy is not None:
-                data["charge_energy"] = charge_energy[0]
+                data["connector_1"]["charge_energy"] = charge_energy[0]
                 
             if charge_power is not None:
-                data["charge_power"] = charge_power[0]
+                data["connector_1"]["charge_power"] = charge_power[0]
             
             # Only read error and CP state sensors if enabled
             if enable_error_sensors:
@@ -232,13 +231,13 @@ async def async_setup_entry(
                 
                 # Add the error register values to the data
                 if error_code is not None:
-                    data["error_code"] = error_code[0]
+                    data["connector_1"]["error_code"] = error_code[0]
                     
                 if cp_state is not None:
-                    data["cp_state"] = cp_state[0]
+                    data["connector_1"]["cp_state"] = cp_state[0]
                     
                 if prev_cp_state is not None:
-                    data["prev_cp_state"] = prev_cp_state[0]
+                    data["connector_1"]["prev_cp_state"] = prev_cp_state[0]
             
             # Only read phase measurements if enabled
             if enable_phase_sensors:
@@ -273,91 +272,327 @@ async def async_setup_entry(
                 
                 # Add phase power measurements
                 if power_phases is not None and len(power_phases) >= 3:
-                    data["power_l1"] = power_phases[0]
-                    data["power_l2"] = power_phases[1]
-                    data["power_l3"] = power_phases[2]
-                    
+                    data["connector_1"]["power_l1"] = power_phases[0]
+                    data["connector_1"]["power_l2"] = power_phases[1]
+                    data["connector_1"]["power_l3"] = power_phases[2]
+                
                 # Add phase current measurements
                 if current_phases is not None and len(current_phases) >= 3:
-                    data["current_l1"] = current_phases[0]
-                    data["current_l2"] = current_phases[1]
-                    data["current_l3"] = current_phases[2]
-                    
+                    data["connector_1"]["current_l1"] = current_phases[0]
+                    data["connector_1"]["current_l2"] = current_phases[1]
+                    data["connector_1"]["current_l3"] = current_phases[2]
+                
                 # Add phase voltage measurements
                 if voltage_phases is not None and len(voltage_phases) >= 3:
-                    data["voltage_l1"] = voltage_phases[0]
-                    data["voltage_l2"] = voltage_phases[1]
-                    data["voltage_l3"] = voltage_phases[2]
-                    
+                    data["connector_1"]["voltage_l1"] = voltage_phases[0]
+                    data["connector_1"]["voltage_l2"] = voltage_phases[1]
+                    data["connector_1"]["voltage_l3"] = voltage_phases[2]
+                
                 # Add phase energy measurements
-                if energy_phases[0] is not None:
-                    data["energy_l1"] = energy_phases[0]
-                if energy_phases[1] is not None:
-                    data["energy_l2"] = energy_phases[1]
-                if energy_phases[2] is not None:
-                    data["energy_l3"] = energy_phases[2]
+                if energy_phases is not None and len(energy_phases) >= 3:
+                    if energy_phases[0] is not None:
+                        data["connector_1"]["energy_l1"] = energy_phases[0]
+                    if energy_phases[1] is not None:
+                        data["connector_1"]["energy_l2"] = energy_phases[1]
+                    if energy_phases[2] is not None:
+                        data["connector_1"]["energy_l3"] = energy_phases[2]
+            
+            # Read the summary energy value
+            energy_sum = await client.read_holding_registers(REG_ENERGY_SUM, 2)
+            if energy_sum is not None and len(energy_sum) >= 2:
+                data["connector_1"]["energy_sum"] = energy_sum[0] + (energy_sum[1] << 16)
+            
+            # If we have two connectors, read data for the second connector
+            if num_connectors > 1:
+                _LOGGER.debug("Reading data for second connector")
+                data["connector_2"] = {}
+                
+                # Second connector data
+                wallbox_ev_state_2 = await client.read_holding_registers(REG_WALLBOX_EV_STATE_2, 1)
+                current_limit_2 = await client.read_holding_registers(REG_CURRENT_LIMIT_2, 1)
+                charge_current_2 = await client.read_holding_registers(REG_CHARGE_CURRENT_2, 1)
+                max_station_current_2 = await client.read_holding_registers(REG_MAX_STATION_CURRENT_2, 1)
+                led_pwm_2 = await client.read_holding_registers(REG_LED_PWM_2, 1)
+                charge_energy_2 = await client.read_holding_registers(REG_CHARGE_ENERGY_2, 1)
+                charge_power_2 = await client.read_holding_registers(REG_CHARGE_POWER_2, 1)
+                
+                if wallbox_ev_state_2 is not None:
+                    data["connector_2"]["wallbox_ev_state"] = wallbox_ev_state_2[0]
+                    
+                if current_limit_2 is not None:
+                    data["connector_2"]["current_limit"] = current_limit_2[0]
+                    
+                if charge_current_2 is not None:
+                    data["connector_2"]["charge_current"] = charge_current_2[0]
+                    
+                if max_station_current_2 is not None:
+                    data["connector_2"]["max_station_current"] = max_station_current_2[0]
+                    
+                if led_pwm_2 is not None:
+                    data["connector_2"]["led_pwm"] = led_pwm_2[0]
+                    
+                if charge_energy_2 is not None:
+                    data["connector_2"]["charge_energy"] = charge_energy_2[0]
+                    
+                if charge_power_2 is not None:
+                    data["connector_2"]["charge_power"] = charge_power_2[0]
+                
+                # Only read error and CP state sensors if enabled
+                if enable_error_sensors:
+                    error_code_2 = await client.read_holding_registers(REG_ERROR_2, 1)
+                    cp_state_2 = await client.read_holding_registers(REG_CP_STATE_2, 1)
+                    prev_cp_state_2 = await client.read_holding_registers(REG_PREV_CP_STATE_2, 1)
+                    
+                    if error_code_2 is not None:
+                        data["connector_2"]["error_code"] = error_code_2[0]
+                        
+                    if cp_state_2 is not None:
+                        data["connector_2"]["cp_state"] = cp_state_2[0]
+                        
+                    if prev_cp_state_2 is not None:
+                        data["connector_2"]["prev_cp_state"] = prev_cp_state_2[0]
+                
+                # Only read phase measurements if enabled
+                if enable_phase_sensors:
+                    power_phases_2 = await client.read_holding_registers(REG_POWER_L1_2, 3)
+                    current_phases_2 = await client.read_holding_registers(REG_CURRENT_L1_2, 3)
+                    voltage_phases_2 = await client.read_holding_registers(REG_VOLTAGE_L1_2, 3)
+                    
+                    energy_phases_2 = []
+                    energy_l1_2 = await client.read_holding_registers(REG_ENERGY_L1_2, 2)
+                    energy_l2_2 = await client.read_holding_registers(REG_ENERGY_L2_2, 2)
+                    energy_l3_2 = await client.read_holding_registers(REG_ENERGY_L3_2, 2)
+                    
+                    if energy_l1_2 is not None and len(energy_l1_2) >= 2:
+                        energy_phases_2.append(energy_l1_2[0] + (energy_l1_2[1] << 16))
+                    else:
+                        energy_phases_2.append(None)
+                        
+                    if energy_l2_2 is not None and len(energy_l2_2) >= 2:
+                        energy_phases_2.append(energy_l2_2[0] + (energy_l2_2[1] << 16))
+                    else:
+                        energy_phases_2.append(None)
+                        
+                    if energy_l3_2 is not None and len(energy_l3_2) >= 2:
+                        energy_phases_2.append(energy_l3_2[0] + (energy_l3_2[1] << 16))
+                    else:
+                        energy_phases_2.append(None)
+                    
+                    # Add phase measurements to data
+                    if power_phases_2 is not None and len(power_phases_2) >= 3:
+                        data["connector_2"]["power_l1"] = power_phases_2[0]
+                        data["connector_2"]["power_l2"] = power_phases_2[1]
+                        data["connector_2"]["power_l3"] = power_phases_2[2]
+                    
+                    if current_phases_2 is not None and len(current_phases_2) >= 3:
+                        data["connector_2"]["current_l1"] = current_phases_2[0]
+                        data["connector_2"]["current_l2"] = current_phases_2[1]
+                        data["connector_2"]["current_l3"] = current_phases_2[2]
+                    
+                    if voltage_phases_2 is not None and len(voltage_phases_2) >= 3:
+                        data["connector_2"]["voltage_l1"] = voltage_phases_2[0]
+                        data["connector_2"]["voltage_l2"] = voltage_phases_2[1]
+                        data["connector_2"]["voltage_l3"] = voltage_phases_2[2]
+                    
+                    if energy_phases_2 is not None and len(energy_phases_2) >= 3:
+                        if energy_phases_2[0] is not None:
+                            data["connector_2"]["energy_l1"] = energy_phases_2[0]
+                        if energy_phases_2[1] is not None:
+                            data["connector_2"]["energy_l2"] = energy_phases_2[1]
+                        if energy_phases_2[2] is not None:
+                            data["connector_2"]["energy_l3"] = energy_phases_2[2]
+                
+                # Read the summary energy value for connector 2
+                energy_sum_2 = await client.read_holding_registers(REG_ENERGY_SUM_2, 2)
+                if energy_sum_2 is not None and len(energy_sum_2) >= 2:
+                    data["connector_2"]["energy_sum"] = energy_sum_2[0] + (energy_sum_2[1] << 16)
             
             return data
-        except Exception as ex:
-            _LOGGER.error("Error fetching Olife Energy Wallbox data: %s", ex)
-            raise
-    
+        except Exception as exception:
+            _LOGGER.error("Error updating data: %s", exception)
+            raise UpdateFailed(f"Error updating data: {exception}") from exception
+
+    # Create coordinator
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
-        name="olife_wallbox",
+        name=f"{name} Sensor",
         update_method=async_update_data,
         update_interval=timedelta(seconds=scan_interval),
     )
-    
-    # Fetch initial data
+
+    # Fetch initial data so we have data when entities initialize
     await coordinator.async_config_entry_first_refresh()
     
-    # Base entities - always included
-    entities = [
-        OlifeWallboxEVStateSensor(coordinator, name, "wallbox_ev_state", device_info, device_unique_id),
-        OlifeWallboxCurrentLimitSensor(coordinator, name, "current_limit", device_info, device_unique_id),
-        OlifeWallboxMaxStationCurrentSensor(coordinator, name, "max_station_current", device_info, device_unique_id),
-        OlifeWallboxLedPwmSensor(coordinator, name, "led_pwm", device_info, device_unique_id),
-        OlifeWallboxChargeCurrentSensor(coordinator, name, "charge_current", device_info, device_unique_id),
-        OlifeWallboxChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id),
-        OlifeWallboxChargePowerSensor(coordinator, name, "charge_power", device_info, device_unique_id),
-    ]
+    # Store the coordinator in the hass data
+    hass.data[DOMAIN][entry.entry_id]["coordinator"] = coordinator
+
+    entities = []
     
-    # Add error and CP state sensors if enabled
-    if enable_error_sensors:
+    # Create entity for each connector
+    for connector_idx in range(1, num_connectors + 1):
+        connector_key = f"connector_{connector_idx}"
+        connector_name = f"{name}" if num_connectors == 1 else f"{name} Connector {connector_idx}"
+        
+        # Add a suffix to the device_unique_id if we have multiple connectors
+        connector_unique_id = device_unique_id if num_connectors == 1 else f"{device_unique_id}_connector_{connector_idx}"
+        
+        # Create a device_info object per connector
+        connector_device_info = DeviceInfo(
+            identifiers={(DOMAIN, connector_unique_id)},
+            name=connector_name,
+            manufacturer="Olife Energy",
+            model=device_info.get("model", "Wallbox"),
+            sw_version=device_info.get("sw_version", "Unknown"),
+            hw_version=device_info.get("hw_version", "Unknown"),
+            via_device=(DOMAIN, device_unique_id) if num_connectors > 1 else None,
+        )
+        
+        # Base sensors (always created)
         entities.extend([
-            OlifeWallboxCPStateSensor(coordinator, name, "cp_state", device_info, device_unique_id),
-            OlifeWallboxErrorCodeSensor(coordinator, name, "error_code", device_info, device_unique_id),
+            OlifeWallboxEVStateSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.wallbox_ev_state", 
+                connector_device_info, 
+                f"{connector_unique_id}_wallbox_ev_state"
+            ),
+            OlifeWallboxCurrentLimitSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.current_limit", 
+                connector_device_info, 
+                f"{connector_unique_id}_current_limit"
+            ),
+            OlifeWallboxMaxStationCurrentSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.max_station_current", 
+                connector_device_info, 
+                f"{connector_unique_id}_max_station_current"
+            ),
+            OlifeWallboxLedPwmSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.led_pwm", 
+                connector_device_info, 
+                f"{connector_unique_id}_led_pwm"
+            ),
+            OlifeWallboxChargeCurrentSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.charge_current", 
+                connector_device_info, 
+                f"{connector_unique_id}_charge_current"
+            ),
+            OlifeWallboxChargeEnergySensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.charge_energy", 
+                connector_device_info, 
+                f"{connector_unique_id}_charge_energy"
+            ),
+            OlifeWallboxChargePowerSensor(
+                coordinator, 
+                connector_name, 
+                f"{connector_key}.charge_power", 
+                connector_device_info, 
+                f"{connector_unique_id}_charge_power"
+            )
         ])
+        
+        # Add error sensors if enabled
+        if enable_error_sensors:
+            entities.extend([
+                OlifeWallboxErrorCodeSensor(
+                    coordinator, 
+                    connector_name, 
+                    f"{connector_key}.error_code", 
+                    connector_device_info, 
+                    f"{connector_unique_id}_error_code"
+                ),
+                OlifeWallboxCPStateSensor(
+                    coordinator, 
+                    connector_name, 
+                    f"{connector_key}.cp_state", 
+                    connector_device_info, 
+                    f"{connector_unique_id}_cp_state"
+                )
+            ])
+        
+        # Add phase sensors if enabled
+        if enable_phase_sensors:
+            for phase_num in range(1, 4):
+                entities.extend([
+                    OlifeWallboxPhasePowerSensor(
+                        coordinator, 
+                        connector_name, 
+                        f"{connector_key}.power_l{phase_num}", 
+                        connector_device_info, 
+                        f"{connector_unique_id}_power_l{phase_num}", 
+                        phase_num
+                    ),
+                    OlifeWallboxPhaseCurrentSensor(
+                        coordinator, 
+                        connector_name, 
+                        f"{connector_key}.current_l{phase_num}", 
+                        connector_device_info, 
+                        f"{connector_unique_id}_current_l{phase_num}", 
+                        phase_num
+                    ),
+                    OlifeWallboxPhaseVoltageSensor(
+                        coordinator, 
+                        connector_name, 
+                        f"{connector_key}.voltage_l{phase_num}", 
+                        connector_device_info, 
+                        f"{connector_unique_id}_voltage_l{phase_num}", 
+                        phase_num
+                    ),
+                    OlifeWallboxPhaseEnergySensor(
+                        coordinator, 
+                        connector_name, 
+                        f"{connector_key}.energy_l{phase_num}", 
+                        connector_device_info, 
+                        f"{connector_unique_id}_energy_l{phase_num}", 
+                        phase_num
+                    )
+                ])
+        
+        # Add energy tracking sensors if enabled
+        if enable_daily_energy:
+            entities.append(
+                OlifeWallboxDailyChargeEnergySensor(
+                    coordinator, 
+                    connector_name, 
+                    f"{connector_key}.charge_power", 
+                    connector_device_info, 
+                    f"{connector_unique_id}_daily_charge_energy"
+                )
+            )
+            
+        if enable_monthly_energy:
+            entities.append(
+                OlifeWallboxMonthlyChargeEnergySensor(
+                    coordinator, 
+                    connector_name, 
+                    f"{connector_key}.charge_power", 
+                    connector_device_info, 
+                    f"{connector_unique_id}_monthly_charge_energy"
+                )
+            )
+            
+        if enable_yearly_energy:
+            entities.append(
+                OlifeWallboxYearlyChargeEnergySensor(
+                    coordinator, 
+                    connector_name, 
+                    f"{connector_key}.charge_power", 
+                    connector_device_info, 
+                    f"{connector_unique_id}_yearly_charge_energy"
+                )
+            )
     
-    # Add energy tracking sensors if enabled
-    if enable_daily_energy:
-        entities.append(OlifeWallboxDailyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id))
-    
-    if enable_monthly_energy:
-        entities.append(OlifeWallboxMonthlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id))
-    
-    if enable_yearly_energy:
-        entities.append(OlifeWallboxYearlyChargeEnergySensor(coordinator, name, "charge_energy", device_info, device_unique_id))
-    
-    # Add phase measurement sensors if enabled
-    if enable_phase_sensors:
-        entities.extend([
-            OlifeWallboxPhasePowerSensor(coordinator, name, "power_l1", device_info, device_unique_id, 1),
-            OlifeWallboxPhasePowerSensor(coordinator, name, "power_l2", device_info, device_unique_id, 2),
-            OlifeWallboxPhasePowerSensor(coordinator, name, "power_l3", device_info, device_unique_id, 3),
-            OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l1", device_info, device_unique_id, 1),
-            OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l2", device_info, device_unique_id, 2),
-            OlifeWallboxPhaseCurrentSensor(coordinator, name, "current_l3", device_info, device_unique_id, 3),
-            OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l1", device_info, device_unique_id, 1),
-            OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l2", device_info, device_unique_id, 2),
-            OlifeWallboxPhaseVoltageSensor(coordinator, name, "voltage_l3", device_info, device_unique_id, 3),
-            OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l1", device_info, device_unique_id, 1),
-            OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l2", device_info, device_unique_id, 2),
-            OlifeWallboxPhaseEnergySensor(coordinator, name, "energy_l3", device_info, device_unique_id, 3),
-        ])
-    
+    # Add the entities to Home Assistant
     async_add_entities(entities)
 
 class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
