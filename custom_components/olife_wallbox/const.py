@@ -1,7 +1,7 @@
 """Constants for the Olife Energy Wallbox integration."""
 
 DOMAIN = "olife_wallbox"
-PLATFORMS = ["switch", "number", "sensor", "select"]
+PLATFORMS = ["switch", "number", "sensor"]
 
 # Default values
 DEFAULT_PORT = 502
@@ -69,14 +69,7 @@ REG_ENERGY_L2 = 4002           # Energy phase 2 in mWh
 REG_ENERGY_L3 = 4004           # Energy phase 3 in mWh
 REG_ENERGY_SUM = 4006          # Total energy in Wh
 
-# Charging modes
-CHARGING_MODES = ["fast", "solar", "spot", "off"]
-CHARGING_MODE_VALUES = {
-    "fast": 0,
-    "solar": 1,
-    "spot": 2,
-    "off": 3
-}
+# CP State values
 
 # EV State mapping
 WALLBOX_EV_STATES = {

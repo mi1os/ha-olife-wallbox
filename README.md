@@ -84,7 +84,6 @@ Available options include:
 - **Current Limit**: Set the charging current limit (0-32A)
 - **Maximum Station Current**: Set the maximum station current (0-63A)
 - **LED Brightness**: Set the LED brightness (0-1000)
-- **Charging Mode**: Select charging mode (Fast, Solar, Spot, Off)
 
 ## Available Services
 
