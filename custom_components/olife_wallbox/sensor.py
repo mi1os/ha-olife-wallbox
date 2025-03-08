@@ -55,6 +55,7 @@ from .const import (
     REG_ENERGY_L1,
     REG_ENERGY_L2,
     REG_ENERGY_L3,
+    REG_ENERGY_SUM,
     # State mappings
     WALLBOX_EV_STATES,
     WALLBOX_EV_STATE_ICONS,
@@ -173,30 +174,24 @@ async def async_setup_entry(
             data = {}
             
             # First connector data (always available)
+            data["connector_1"] = {}
+
             # Read wallbox state
             wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
             
             # Read current limit
             current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT, 1)
             
-            # Read charge current
+            # Read charge current (same as current limit in this register mapping)
             charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT, 1)
             
-            # Read max station current
+            # Read max station current (which is the PP current limit)
             max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             
-            # Read LED PWM value (global setting for the station)
+            # Read LED PWM (global setting)
             led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
-            
-            # Read charge energy
-            charge_energy = await client.read_holding_registers(REG_CHARGE_ENERGY, 1)
-            
-            # Read charge power
-            charge_power = await client.read_holding_registers(REG_CHARGE_POWER, 1)
-            
-            # Store first connector data
-            data["connector_1"] = {}
-            
+
+            # Store the values in the data dictionary if they are valid
             if wallbox_ev_state is not None:
                 data["connector_1"]["wallbox_ev_state"] = wallbox_ev_state[0]
                 
@@ -212,12 +207,21 @@ async def async_setup_entry(
             if led_pwm is not None:
                 data["connector_1"]["led_pwm"] = led_pwm[0]
                 
-            if charge_energy is not None:
-                data["connector_1"]["charge_energy"] = charge_energy[0]
+            # Read total energy (as charge energy)
+            energy_sum = await client.read_holding_registers(REG_ENERGY_SUM, 1)
+            if energy_sum is not None:
+                data["connector_1"]["charge_energy"] = energy_sum[0]
                 
-            if charge_power is not None:
-                data["connector_1"]["charge_power"] = charge_power[0]
+            # Read power of phase 1 (as charge power for simplicity)
+            power_l1 = await client.read_holding_registers(REG_POWER_L1, 1)
+            if power_l1 is not None:
+                data["connector_1"]["charge_power"] = power_l1[0]
             
+            # Read the summary energy value
+            energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM, 2)
+            if energy_sum_extended is not None and len(energy_sum_extended) >= 2:
+                data["connector_1"]["energy_sum"] = energy_sum_extended[0] + (energy_sum_extended[1] << 16)
+                
             # Only read error and CP state sensors if enabled
             if enable_error_sensors:
                 # Read error code
@@ -297,11 +301,6 @@ async def async_setup_entry(
                     if energy_phases[2] is not None:
                         data["connector_1"]["energy_l3"] = energy_phases[2]
             
-            # Read the summary energy value
-            energy_sum = await client.read_holding_registers(REG_ENERGY_SUM, 2)
-            if energy_sum is not None and len(energy_sum) >= 2:
-                data["connector_1"]["energy_sum"] = energy_sum[0] + (energy_sum[1] << 16)
-            
             # If we have two connectors, read data for the second connector
             if num_connectors > 1:
                 _LOGGER.debug("Reading data for second connector")
@@ -329,14 +328,15 @@ async def async_setup_entry(
                 if led_pwm is not None:
                     data["connector_2"]["led_pwm"] = led_pwm[0]
                 
-                charge_energy_2 = await client.read_holding_registers(REG_CHARGE_ENERGY_2, 1)
-                charge_power_2 = await client.read_holding_registers(REG_CHARGE_POWER_2, 1)
+                # Read total energy (as charge energy) for connector 2
+                energy_sum_2 = await client.read_holding_registers(REG_ENERGY_SUM_2, 1)
+                if energy_sum_2 is not None:
+                    data["connector_2"]["charge_energy"] = energy_sum_2[0]
                 
-                if charge_energy_2 is not None:
-                    data["connector_2"]["charge_energy"] = charge_energy_2[0]
-                
-                if charge_power_2 is not None:
-                    data["connector_2"]["charge_power"] = charge_power_2[0]
+                # Read power of phase 1 (as charge power for simplicity) for connector 2
+                power_l1_2 = await client.read_holding_registers(REG_POWER_L1_2, 1)
+                if power_l1_2 is not None:
+                    data["connector_2"]["charge_power"] = power_l1_2[0]
                 
                 # Only read error and CP state sensors if enabled
                 if enable_error_sensors:
@@ -404,9 +404,9 @@ async def async_setup_entry(
                             data["connector_2"]["energy_l3"] = energy_phases_2[2]
                 
                 # Read the summary energy value for connector 2
-                energy_sum_2 = await client.read_holding_registers(REG_ENERGY_SUM_2, 2)
-                if energy_sum_2 is not None and len(energy_sum_2) >= 2:
-                    data["connector_2"]["energy_sum"] = energy_sum_2[0] + (energy_sum_2[1] << 16)
+                energy_sum_2_extended = await client.read_holding_registers(REG_ENERGY_SUM_2, 2)
+                if energy_sum_2_extended is not None and len(energy_sum_2_extended) >= 2:
+                    data["connector_2"]["energy_sum"] = energy_sum_2_extended[0] + (energy_sum_2_extended[1] << 16)
             
             return data
         except Exception as exception:

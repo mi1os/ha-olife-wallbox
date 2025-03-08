@@ -38,7 +38,7 @@ stop_charge:
 
 set_current_limit:
   name: Set current limit
-  description: Set the charging current limit on an Olife Energy Wallbox.
+  description: Set the charging current limit on an Olife Energy Wallbox (actual current used for charging).
   target:
     entity:
       domain: number
@@ -65,8 +65,10 @@ set_current_limit:
           unit_of_measurement: A
 
 set_max_current:
-  name: Set maximum current
-  description: Set the maximum station current on an Olife Energy Wallbox.
+  name: Set maximum current (DEPRECATED)
+  description: >
+    DEPRECATED: This service is no longer functional. 
+    The cable current limit is read-only and determined by the charging cable connected to the wallbox.
   target:
     entity:
       domain: number
@@ -76,14 +78,14 @@ set_max_current:
   fields:
     device_id:
       name: Device
-      description: The ID of the Olife Energy Wallbox device to set the maximum current on.
+      description: The ID of the Olife Energy Wallbox device.
       required: true
       selector:
         device:
           integration: olife_wallbox
     max_current:
       name: Maximum current
-      description: The maximum station current in amps (6-63A).
+      description: This setting has no effect as the cable current limit is determined by the hardware.
       required: true
       selector:
         number:

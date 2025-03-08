@@ -159,34 +159,12 @@ async def _set_current_limit(hass: HomeAssistant, device_id: str, current_limit:
         raise
 
 async def _set_max_current(hass: HomeAssistant, device_id: str, max_current: int) -> None:
-    """Set the maximum station current of a wallbox."""
-    try:
-        client = await _get_client_for_device(hass, device_id)
-        if await client.write_register(REG_MAX_STATION_CURRENT, max_current):
-            _LOGGER.info("Maximum station current set to %s A for device %s", max_current, device_id)
-            
-            # Update number state for better responsiveness
-            entity_registry = er.async_get(hass)
-            for entity_id in entity_registry.entities.values():
-                if (
-                    entity_id.domain == "number"
-                    and entity_id.unique_id
-                    and device_id in entity_id.unique_id
-                    and "max_station_current" in entity_id.unique_id
-                ):
-                    entity = entity_registry.async_get_entity_id(
-                        "number", DOMAIN, entity_id.unique_id
-                    )
-                    if entity and hass.states.get(entity):
-                        await hass.services.async_call(
-                            "homeassistant", "update_entity", {"entity_id": entity}
-                        )
-                    break
-        else:
-            _LOGGER.error("Failed to set max station current for device %s", device_id)
-    except Exception as ex:
-        _LOGGER.error("Error setting max station current: %s", ex)
-        raise
+    """
+    This service is deprecated. 
+    The PP current limit is read-only and determined by the charging cable.
+    """
+    _LOGGER.warning("The set_max_current service is deprecated as the PP current limit is read-only")
+    raise HomeAssistantError("The PP current limit is read-only and determined by the charging cable")
 
 async def _set_led_brightness(hass: HomeAssistant, device_id: str, brightness: int) -> None:
     """Set the LED brightness of a wallbox."""

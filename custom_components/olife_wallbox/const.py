@@ -34,19 +34,27 @@ REG_LED_PWM = 5008             # LED PWM value (global station setting)
 
 # Connector 1 Registers (2000-2026, 4000-4019)
 # EVSE-A registers
-REG_WALLBOX_EV_STATE = 2000    # Wallbox EV state
-REG_CHARGING_ENABLE = 2001     # Enable charging
-REG_VERIFY_USER = 2002         # Verify user
-REG_AUTOMATIC = 2003           # Automatic mode
-REG_CURRENT_LIMIT = 2009       # Current limit in A
-REG_MAX_STATION_CURRENT = 2011 # Maximum station current in A
-REG_CHARGE_CURRENT = 2012      # Charging current in A
-REG_CHARGE_ENERGY = 2014       # Charging energy in Wh (2 registers)
-REG_CHARGE_POWER = 2016        # Charging power in W
-REG_ERROR = 2019               # Error code
-REG_CP_STATE = 2024            # Control Pilot state
-REG_PREV_CP_STATE = 2026       # Previous Control Pilot state
-REG_CHARGING_MODE = 2102       # Register for charging mode selection
+REG_ERROR = 2000               # Error in binary code
+REG_VERIFY_USER = 2001         # Verify user by (cloud,rfid). If register is in 1 -> charging is enable
+REG_CP_STATE = 2002            # Actual state on cp conductor
+REG_PREV_CP_STATE = 2003       # Last CP state
+REG_WALLBOX_EV_STATE = 2004    # Actual EV state
+REG_PREV_EV_STATE = 2005       # Previous EV state
+REG_CLOUD_CURRENT_LIMIT = 2006 # Current limit set by external devices (Cloud, Mobile app, etc.)
+REG_CURRENT_LIMIT = 2007       # Actual set current - PP limit, ext. current regulator, cloudu, dipSwitches
+REG_PP_CURRENT_LIMIT = 2008    # Current limit by PP resistor
+REG_CONTACTOR_STATE = 2009     # Main contactor state
+REG_CP_PWM_STATE = 2010        # Actual PWM value
+REG_CP_HIGH = 2011             # Voltage of possitive PWM pulse
+REG_CP_LOW = 2012              # Voltage of negative PWM pulse
+REG_LOCK_STATE = 2013          # Lock state: 1=locked, 2=unlocked, 3=unlocking, 4=locking 0=uknown
+REG_LOCK_SENSOR = 2014         # End sensor  1=locked, 2=unlocked, 0=uknown
+REG_PP_RESISTOR = 2015         # PP resistor value
+REG_LED_STATE = 2016           # Led state
+REG_ADC_CP = 2017              # Value of CP in AD converter
+REG_ADC_PP = 2018              # Value of PP in AD converter
+REG_LOCK_RELEASE = 2019        # Emergency release of lock
+REG_EXTERNAL_CURRENT_CONTROL = 2020 # External current control
 
 # Wattmeter registers
 # Individual phase measurements
@@ -70,18 +78,27 @@ REG_ENERGY_SUM = 4006          # Total energy in Wh
 
 # Connector 2 Registers (if present, 2100-2126, 4100-4119)
 # EVSE-A registers (second connector)
-REG_WALLBOX_EV_STATE_2 = 2100  # Wallbox EV state (connector 2)
-REG_CHARGING_ENABLE_2 = 2101   # Enable charging (connector 2)
-REG_VERIFY_USER_2 = 2102       # Verify user (connector 2)
-REG_AUTOMATIC_2 = 2103         # Automatic mode (connector 2)
-REG_CURRENT_LIMIT_2 = 2109     # Current limit in A (connector 2)
-REG_MAX_STATION_CURRENT_2 = 2111 # Maximum station current in A (connector 2)
-REG_CHARGE_CURRENT_2 = 2112    # Charging current in A (connector 2)
-REG_CHARGE_ENERGY_2 = 2114     # Charging energy in Wh (2 registers) (connector 2)
-REG_CHARGE_POWER_2 = 2116      # Charging power in W (connector 2)
-REG_ERROR_2 = 2119             # Error code (connector 2)
-REG_CP_STATE_2 = 2124          # Control Pilot state (connector 2)
-REG_PREV_CP_STATE_2 = 2126     # Previous Control Pilot state (connector 2)
+REG_ERROR_2 = 2100             # Error in binary code (connector 2)
+REG_VERIFY_USER_2 = 2101       # Verify user (connector 2)
+REG_CP_STATE_2 = 2102          # Actual state on cp conductor (connector 2)
+REG_PREV_CP_STATE_2 = 2103     # Last CP state (connector 2)
+REG_WALLBOX_EV_STATE_2 = 2104  # Actual EV state (connector 2)
+REG_PREV_EV_STATE_2 = 2105     # Previous EV state (connector 2)
+REG_CLOUD_CURRENT_LIMIT_2 = 2106 # Current limit set by external devices (connector 2)
+REG_CURRENT_LIMIT_2 = 2107     # Actual set current (connector 2)
+REG_PP_CURRENT_LIMIT_2 = 2108  # Current limit by PP resistor (connector 2)
+REG_CONTACTOR_STATE_2 = 2109   # Main contactor state (connector 2)
+REG_CP_PWM_STATE_2 = 2110      # Actual PWM value (connector 2)
+REG_CP_HIGH_2 = 2111           # Voltage of possitive PWM pulse (connector 2)
+REG_CP_LOW_2 = 2112            # Voltage of negative PWM pulse (connector 2)
+REG_LOCK_STATE_2 = 2113        # Lock state (connector 2)
+REG_LOCK_SENSOR_2 = 2114       # End sensor (connector 2)
+REG_PP_RESISTOR_2 = 2115       # PP resistor value (connector 2)
+REG_LED_STATE_2 = 2116         # Led state (connector 2)
+REG_ADC_CP_2 = 2117            # Value of CP in AD converter (connector 2)
+REG_ADC_PP_2 = 2118            # Value of PP in AD converter (connector 2)
+REG_LOCK_RELEASE_2 = 2119      # Emergency release of lock (connector 2)
+REG_EXTERNAL_CURRENT_CONTROL_2 = 2120 # External current control (connector 2)
 
 # Wattmeter registers (second connector)
 REG_POWER_L1_2 = 4110          # Power of phase 1 in W (connector 2)
@@ -101,6 +118,22 @@ REG_ENERGY_L2_2 = 4102         # Energy phase 2 in mWh (connector 2)
 REG_ENERGY_L3_2 = 4104         # Energy phase 3 in mWh (connector 2)
 REG_ENERGY_SUM_2 = 4106        # Total energy in Wh (connector 2)
 
+# Missing registers in our original implementation that we need to map
+REG_CHARGE_CURRENT = 2007      # Using current limit register as charge current
+REG_CHARGE_ENERGY = 4006       # Using total energy as charge energy
+REG_CHARGE_POWER = 4010        # Using phase 1 power as charge power for simplicity
+REG_MAX_STATION_CURRENT = 2008 # Using PP current limit as max station current
+REG_CHARGING_ENABLE = 2001     # Using verify user as charging enable
+REG_AUTOMATIC = 2001           # Not directly available, using verify user
+
+# Second connector equivalent mappings
+REG_CHARGE_CURRENT_2 = 2107    # Using current limit register as charge current (connector 2)
+REG_CHARGE_ENERGY_2 = 4106     # Using total energy as charge energy (connector 2)
+REG_CHARGE_POWER_2 = 4110      # Using phase 1 power as charge power for simplicity (connector 2)
+REG_MAX_STATION_CURRENT_2 = 2108 # Using PP current limit as max station current (connector 2)
+REG_CHARGING_ENABLE_2 = 2101   # Using verify user as charging enable (connector 2)
+REG_AUTOMATIC_2 = 2101         # Not directly available, using verify user (connector 2)
+
 # Device information registers
 REG_DEVICE_INFO_START = 6000   # Device information start
 REG_HW_VERSION = 6000          # Hardware version
@@ -113,17 +146,31 @@ REG_NUM_CONNECTORS = 6015      # Number of connectors (1 or 2)
 
 # EV State mapping
 WALLBOX_EV_STATES = {
-    1: "Cable Unplugged",
-    2: "Cable Plugged",
-    3: "User Authenticated",
+    1: "EV Unplugged",
+    2: "EV Connected",
+    3: "EV Verified",
     4: "Charging",
-    5: "Car Suspended",
+    5: "Charging Interrupted",
     6: "Current Below 6A",
-    7: "No Authentication",
+    7: "Cloud Stopped",
+    8: "Tester Charging",
     90: "Error"
 }
 
-# CP State mapping from the spreadsheet
+# Detailed EV state descriptions for attributes
+WALLBOX_EV_STATE_DESCRIPTIONS = {
+    1: "EV unplugged",
+    2: "EV connected (CP state from 12V to 9V)",
+    3: "EV verified (CP state from 9V to 9V with PWM)",
+    4: "EV charging, main contactor is ON (CP state in 6V PWM)",
+    5: "EV charging interrupted (100% SoC or key) (CP state from 6V PWM to 9V PWM)",
+    6: "Charging stopped by current regulator (Current under 6A) (CP state from 6V PWM to 9V)",
+    7: "Charging stopped by cloud (CP state from 6V PWM to 9V)",
+    8: "Charging by tester",
+    90: "EV error"
+}
+
+# CP State mapping
 CP_STATES = {
     1: "Ready (+12V)",
     2: "EV Connected (+9V)",
@@ -136,8 +183,7 @@ CP_STATES = {
     9: "Error: CP Voltage Too High",
     10: "Error: CP Shorted (0V)",
     11: "Unknown State",
-    12: "Error: RCD Fault",
-    13: "Error: Connector Missing"
+    12: "Error: RCD Fault"
 }
 
 # EV State icons mapping

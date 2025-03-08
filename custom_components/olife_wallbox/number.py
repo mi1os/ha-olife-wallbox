@@ -103,7 +103,7 @@ class OlifeWallboxNumberBase(NumberEntity):
         return self._error_count == 1 or self._error_count % ERROR_LOG_THRESHOLD == 0
 
 class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
-    """Number entity to control current limit on Olife Energy Wallbox."""
+    """Number entity to control current limit on Olife Energy Wallbox (actual set current)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
@@ -318,7 +318,7 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
             self._available = False
 
 class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
-    """Number entity to control maximum station current on Olife Energy Wallbox."""
+    """Entity to display the PP current limit (read-only, determined by the cable)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
@@ -328,7 +328,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     @property
     def name(self):
         """Return the name of the entity."""
-        return "Max Station Current"
+        return "Cable Current Limit"
         
     @property
     def unique_id(self):
@@ -359,48 +359,21 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     def native_step(self):
         """Return the step value."""
         return 1
+        
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled by default."""
+        return True
 
+    @property
+    def read_only(self) -> bool:
+        """Return True as this is a read-only entity."""
+        return True
+        
     async def async_set_native_value(self, value):
-        """Set the value."""
-        if not self._available:
-            _LOGGER.warning("Cannot set max station current: Device unavailable")
-            raise HomeAssistantError("Cannot set max station current: Device unavailable")
-            
-        try:
-            _LOGGER.debug("Setting max station current to: %s (type: %s)", value, type(value))
-            # Ensure value is an integer
-            scaled_value = int(round(float(value)))
-            _LOGGER.debug("Converted max station current value to integer: %s", scaled_value)
-            
-            # Ensure value is within valid range
-            if scaled_value < 6:
-                scaled_value = 6
-                _LOGGER.warning("Max station current value below minimum, setting to 6")
-            elif scaled_value > 63:
-                scaled_value = 63
-                _LOGGER.warning("Max station current value above maximum, setting to 63")
-            
-            if await self._client.write_register(REG_MAX_STATION_CURRENT, scaled_value):
-                self._value = value
-                self._error_count = 0
-                _LOGGER.info("Max station current set to: %s", value)
-                self.async_write_ha_state()
-            else:
-                self._error_count += 1
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Failed to set max station current to %s (error count: %s)",
-                        value, self._error_count
-                    )
-                raise HomeAssistantError(f"Failed to set max station current to {value}")
-        except Exception as ex:
-            self._error_count += 1
-            if self._should_log_error():
-                _LOGGER.error(
-                    "Error setting max station current to %s: %s (error count: %s)",
-                    value, ex, self._error_count
-                )
-            raise HomeAssistantError(f"Error setting max station current: {ex}")
+        """This is a read-only entity, so this method should not be called."""
+        _LOGGER.warning("Cannot set PP current limit as it is read-only (determined by the cable)")
+        raise HomeAssistantError("PP current limit is read-only and determined by the charging cable")
 
     async def async_update(self):
         """Update the state of the entity."""
@@ -414,7 +387,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read max station current (error count: %s)",
+                        "Failed to read PP current limit (error count: %s)",
                         self._error_count
                     )
                 self._available = False
@@ -422,7 +395,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             self._error_count += 1
             if self._should_log_error():
                 _LOGGER.error(
-                    "Error updating max station current: %s (error count: %s)",
+                    "Error updating PP current limit: %s (error count: %s)",
                     ex, self._error_count
                 )
             self._available = False 

@@ -207,7 +207,7 @@ class OlifeWallboxSwitchBase(SwitchEntity):
             self._available = False
 
 class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
-    """Switch to control charging on Olife Energy Wallbox."""
+    """Switch to control charging on Olife Energy Wallbox (uses verify user register to enable charging)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
@@ -233,7 +233,7 @@ class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
         return "mdi:ev-station" if self._is_on else "mdi:ev-station-off"
 
 class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
-    """Switch to control user verification on Olife Energy Wallbox."""
+    """Switch to control user verification on Olife Energy Wallbox (verify user by cloud/RFID)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
@@ -259,7 +259,7 @@ class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
         return "mdi:check-decagram" if self._is_on else "mdi:check-decagram-outline"
 
 class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox."""
+    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
