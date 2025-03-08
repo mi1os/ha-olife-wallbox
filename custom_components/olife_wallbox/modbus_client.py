@@ -79,6 +79,10 @@ class OlifeWallboxModbusClient:
             return False
 
         self._last_connect_attempt = now
+        
+        # Add counter for successful connections to reduce logging
+        if not hasattr(self, '_successful_connections_count'):
+            self._successful_connections_count = 0
 
         try:
             _LOGGER.debug("Connecting to Olife Wallbox at %s:%s", self._host, self._port)
@@ -88,11 +92,25 @@ class OlifeWallboxModbusClient:
                 )
                 
                 if connected:
+                    was_previously_connected = self._connected
+                    had_previous_errors = self._connection_errors > 0
+                    
                     self._connected = True
                     self._connection_errors = 0
                     self._consecutive_errors = 0
                     self._last_successful_connection = now
-                    _LOGGER.info("Successfully connected to Olife Wallbox at %s:%s", self._host, self._port)
+                    
+                    # Increment successful connections counter
+                    self._successful_connections_count += 1
+                    
+                    # Only log success in these cases:
+                    # 1. First successful connection (counter = 1)
+                    # 2. After previous connection errors
+                    # 3. Every 100 successful connections (for periodic confirmation)
+                    if (self._successful_connections_count == 1 or 
+                        had_previous_errors or 
+                        self._successful_connections_count % 100 == 0):
+                        _LOGGER.info("Successfully connected to Olife Wallbox at %s:%s", self._host, self._port)
                 else:
                     self._connection_errors += 1
                     _LOGGER.warning(
