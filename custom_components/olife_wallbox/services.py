@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE_ID
+from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
@@ -14,6 +14,7 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import (
     DOMAIN,
+    CONF_SLAVE_ID,
     REG_CHARGING_ENABLE_A,
     REG_CHARGING_ENABLE_B,
     REG_CURRENT_LIMIT_A,
