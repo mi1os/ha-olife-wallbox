@@ -54,21 +54,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Read device information
         device_info = {}
         
-        # Hardware version
+        # Hardware and software versions
         hw_version = await client.read_holding_registers(REG_HW_VERSION, 1)
+        sw_version = await client.read_holding_registers(REG_SW_VERSION, 1)
+        
+        _LOGGER.debug("Raw HW_VERSION register value: %s", hw_version)
+        _LOGGER.debug("Raw SW_VERSION register value: %s", sw_version)
+        
         if hw_version:
             device_info["hw_version"] = f"{hw_version[0]/100:.2f}"
+            _LOGGER.info("Hardware version: %s", device_info["hw_version"])
+        else:
+            _LOGGER.warning("Could not read hardware version from register %s", REG_HW_VERSION)
             
-        # Software version
-        sw_version = await client.read_holding_registers(REG_SW_VERSION, 1)
         if sw_version:
             device_info["sw_version"] = f"{sw_version[0]/100:.2f}"
+            _LOGGER.info("Software version: %s", device_info["sw_version"])
+        else:
+            _LOGGER.warning("Could not read software version from register %s", REG_SW_VERSION)
             
-        # Serial number (first and last parts)
+        # Serial number
         sn_first = await client.read_holding_registers(REG_SN_FIRST_PART, 1)
         sn_last = await client.read_holding_registers(REG_SN_LAST_PART, 1)
+        
+        _LOGGER.debug("Raw SN_FIRST_PART register value: %s", sn_first)
+        _LOGGER.debug("Raw SN_LAST_PART register value: %s", sn_last)
+        
         if sn_first and sn_last:
             device_info["serial_number"] = f"{sn_first[0]:03d}-{sn_last[0]:03d}"
+            _LOGGER.info("Serial number: %s", device_info["serial_number"])
+        else:
+            _LOGGER.warning("Could not read serial number from registers %s and %s", 
+                           REG_SN_FIRST_PART, REG_SN_LAST_PART)
             
         # Manufacturing date
         year_month = await client.read_holding_registers(REG_YEAR_MONTH, 1)
@@ -82,9 +99,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             
         # Station type
         pn_type = await client.read_holding_registers(REG_PN_TYPE, 1)
+        _LOGGER.debug("Raw PN_TYPE register value: %s", pn_type)
         if pn_type:
             station_type = pn_type[0] // 10  # First digit
             station_variant = pn_type[0] % 10  # Second digit
+            
+            _LOGGER.info("Decoded station type: type=%s, variant=%s", station_type, station_variant)
             
             station_types = {
                 1: "WB (Wallbox)",
@@ -97,10 +117,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             station_variant_str = station_variants.get(station_variant, "Unknown")
             
             device_info["model"] = f"{station_type_str} {station_variant_str}"
+            _LOGGER.info("Set model to: %s", device_info["model"])
+        else:
+            _LOGGER.warning("Could not read station type from register %s", REG_PN_TYPE)
             
         # Connector information
         pn_left = await client.read_holding_registers(REG_PN_LEFT, 1)
         pn_right = await client.read_holding_registers(REG_PN_RIGHT, 1)
+        
+        _LOGGER.debug("Raw PN_LEFT register value: %s", pn_left)
+        _LOGGER.debug("Raw PN_RIGHT register value: %s", pn_right)
         
         connector_types = {1: "Yazaki", 2: "Mennekes"}
         cable_types = {1: "Socket", 2: "Coil Cable", 3: "Straight Cable"}
@@ -108,19 +134,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if pn_left:
             left_type = pn_left[0] // 10  # First digit
             left_cable = pn_left[0] % 10  # Second digit
+            _LOGGER.info("Decoded left connector: type=%s, cable=%s", left_type, left_cable)
             left_type_str = connector_types.get(left_type, "Unknown")
             left_cable_str = cable_types.get(left_cable, "Unknown")
             device_info["connector_left"] = f"{left_type_str} {left_cable_str}"
+            _LOGGER.info("Set connector_left to: %s", device_info["connector_left"])
             
         if pn_right:
             right_type = pn_right[0] // 10  # First digit
             right_cable = pn_right[0] % 10  # Second digit
+            _LOGGER.info("Decoded right connector: type=%s, cable=%s", right_type, right_cable)
             right_type_str = connector_types.get(right_type, "Unknown")
             right_cable_str = cable_types.get(right_cable, "Unknown")
             device_info["connector_right"] = f"{right_type_str} {right_cable_str}"
+            _LOGGER.info("Set connector_right to: %s", device_info["connector_right"])
             
         # Number of connectors
         num_connectors = await client.read_holding_registers(REG_NUM_CONNECTORS, 1)
+        _LOGGER.debug("Raw NUM_CONNECTORS register value: %s", num_connectors)
         if num_connectors:
             device_info["num_connectors"] = num_connectors[0]
             _LOGGER.info("Device has %s connector(s)", num_connectors[0])
@@ -145,21 +176,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_info.get("num_connectors", 1)
         )
         
-        # Make sure the device registry has the correct model info
+        # Create enhanced device info with all the information we collected
+        device_registry = dr.async_get(hass)
+        
         # Create a unique ID for the device
         device_unique_id = f"{host}_{port}_{slave_id}"
-        device_name = entry.data.get(CONF_NAME, "Olife Wallbox")
         
-        # Update device registry with the latest model information
-        device_registry = dr.async_get(hass)
+        # Create a more detailed model name that includes connector information
+        model_info = device_info.get("model", "Wallbox")
+        connector_info = []
+        
+        if "connector_left" in device_info:
+            connector_info.append(f"Left: {device_info['connector_left']}")
+        
+        if "connector_right" in device_info:
+            connector_info.append(f"Right: {device_info['connector_right']}")
+        
+        if connector_info:
+            detailed_model = f"{model_info} ({', '.join(connector_info)})"
+        else:
+            detailed_model = model_info
+        
+        # Log the complete device info for debugging
+        _LOGGER.info("Complete device info: %s", device_info)
+        _LOGGER.info("Using detailed model description: %s", detailed_model)
+        
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, device_unique_id)},
-            name=device_name,
+            name=entry.data.get(CONF_NAME, "Olife Wallbox"),
             manufacturer="Olife Energy",
-            model=device_info.get("model", "Wallbox"),
+            model=detailed_model,
             sw_version=device_info.get("sw_version", "Unknown"),
             hw_version=device_info.get("hw_version", "Unknown"),
+            suggested_area="Garage",
         )
         
         # Determine which platforms to load based on read-only setting
