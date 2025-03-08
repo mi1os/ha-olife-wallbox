@@ -84,7 +84,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             station_type = pn_type[0] // 10  # First digit
             station_variant = pn_type[0] % 10  # Second digit
             
-            station_types = {1: "WB", 2: "DB", 3: "ST"}
+            station_types = {
+                1: "WB (Wallbox)",
+                2: "DB (DoubleBox)",
+                3: "ST (Station)"
+            }
             station_variants = {1: "Base", 2: "Smart"}
             
             station_type_str = station_types.get(station_type, "Unknown")
