@@ -26,7 +26,6 @@ from .const import (
     REG_CURRENT_LIMIT_B,
     REG_LED_PWM,
     REG_MAX_STATION_CURRENT,
-    REG_RS485_ID,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -65,8 +64,6 @@ async def async_setup_entry(
             OlifeWallboxCurrentLimit(client, name, device_info, device_unique_id),
             OlifeWallboxLedPwm(client, name, device_info, device_unique_id),
             OlifeWallboxMaxStationCurrent(client, name, device_info, device_unique_id),
-            # Add global number entity
-            OlifeWallboxRS485ID(client, name, device_info, device_unique_id),
         ]
         
         async_add_entities(entities)
@@ -404,135 +401,6 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             if self._should_log_error():
                 _LOGGER.error(
                     "Error updating max station current: %s (error count: %s)",
-                    ex, self._error_count
-                )
-            self._available = False
-
-class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
-    """Number entity for RS485 ID setting."""
-
-    def __init__(self, client, name, device_info, device_unique_id):
-        """Initialize the number entity."""
-        super().__init__(client, name, device_info, device_unique_id)
-        # Start as unavailable until we can verify register exists
-        self._available = False
-        self._register_available = False
-        
-    @property
-    def name(self):
-        """Return the name of the number entity."""
-        return "RS485 Modbus ID"
-        
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        return f"{self._device_unique_id}_rs485_id"
-        
-    @property
-    def native_value(self):
-        """Return the value reported by the number entity."""
-        if not self._register_available:
-            return None
-        return self._value
-        
-    @property
-    def native_min_value(self):
-        """Return the minimum value."""
-        return 0
-        
-    @property
-    def native_max_value(self):
-        """Return the maximum value."""
-        return 16
-        
-    @property
-    def native_step(self):
-        """Return the step value."""
-        return 1
-    
-    @property
-    def entity_registry_enabled_default(self) -> bool:
-        """Return if the entity should be enabled when first added to the entity registry."""
-        return False  # Disabled by default as this might not be supported on all models
-        
-    async def async_set_native_value(self, value):
-        """Set the value of the entity."""
-        if not self._available or not self._register_available:
-            _LOGGER.warning("Cannot set RS485 ID: Device unavailable or register not supported")
-            raise HomeAssistantError("Cannot set RS485 ID: Device unavailable or register not supported")
-            
-        try:
-            _LOGGER.debug("Setting RS485 ID to: %s (type: %s)", value, type(value))
-            # Ensure value is an integer
-            scaled_value = int(round(float(value)))
-            _LOGGER.debug("Converted RS485 ID value to integer: %s", scaled_value)
-            
-            # Ensure value is within valid range
-            if scaled_value < 0:
-                scaled_value = 0
-                _LOGGER.warning("RS485 ID value below minimum, setting to 0")
-            elif scaled_value > 16:
-                scaled_value = 16
-                _LOGGER.warning("RS485 ID value above maximum, setting to 16")
-            
-            if await self._client.write_register(REG_RS485_ID, scaled_value):
-                self._value = value
-                self._error_count = 0
-                _LOGGER.info("RS485 ID set to: %s", value)
-                self.async_write_ha_state()
-            else:
-                self._error_count += 1
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Failed to set RS485 ID to %s (error count: %s)",
-                        value, self._error_count
-                    )
-                raise HomeAssistantError(f"Failed to set RS485 ID to {value}")
-        except Exception as ex:
-            self._error_count += 1
-            if self._should_log_error():
-                _LOGGER.error(
-                    "Error setting RS485 ID to %s: %s (error count: %s)",
-                    value, ex, self._error_count
-                )
-            raise HomeAssistantError(f"Error setting RS485 ID: {ex}")
-            
-    async def async_update(self):
-        """Update the state of the entity."""
-        try:
-            # Check if we've already determined the register is not available
-            if hasattr(self, '_register_not_supported') and self._register_not_supported:
-                self._available = False
-                self._register_available = False
-                return
-                
-            result = await self._client.read_holding_registers(REG_RS485_ID, 1)
-            if result is not None:
-                self._available = True
-                self._register_available = True
-                self._value = result[0]
-                self._error_count = 0
-            else:
-                self._error_count += 1
-                if self._should_log_error():
-                    _LOGGER.warning(
-                        "Failed to read RS485 ID (error count: %s)",
-                        self._error_count
-                    )
-                self._available = False
-        except Exception as ex:
-            self._error_count += 1
-            # Check for specific Modbus exceptions that indicate register is not supported
-            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
-                # Register not supported by this model
-                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
-                    _LOGGER.info("RS485 ID register (5023) not supported by this device, disabling entity")
-                    self._register_not_supported = True
-                self._available = False
-                self._register_available = False
-            elif self._should_log_error():
-                _LOGGER.warning(
-                    "Error updating RS485 ID: %s (error count: %s)",
                     ex, self._error_count
                 )
             self._available = False 

@@ -37,9 +37,6 @@ REG_MAX_STATION_CURRENT = 5006     # Max station current in mA
 REG_BALANCING_EXTERNAL_CURRENT = 5007  # 0/1, Set 1 for balancing the external current controlled by external wattmeter
 REG_LED_PWM = 5008                 # LED PWM value (0-1000)
 
-# Other global registers
-REG_RS485_ID = 5023                # Modbus ID (1-247)
-
 # Connector A Registers (2000-2026, 4000-4019)
 # EVSE-A registers
 REG_ERROR_A = 2000              # Error in binary code
