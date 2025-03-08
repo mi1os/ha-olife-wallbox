@@ -196,7 +196,8 @@ CP_STATES = {
     9: "Error: CP Voltage Too High",
     10: "Error: CP Shorted (0V)",
     11: "Unknown State",
-    12: "Error: RCD Fault"
+    12: "Error: RCD Fault",
+    13: "Error: Connector Missing"
 }
 
 # EV State icons mapping
