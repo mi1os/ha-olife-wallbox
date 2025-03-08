@@ -100,7 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Station type
         pn_type = await client.read_holding_registers(REG_PN_TYPE, 1)
         _LOGGER.debug("Raw PN_TYPE register value: %s", pn_type)
-        if pn_type:
+        if pn_type and pn_type[0] < 100:  # Sanity check for valid values
             station_type = pn_type[0] // 10  # First digit
             station_variant = pn_type[0] % 10  # Second digit
             
@@ -119,7 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_info["model"] = f"{station_type_str} {station_variant_str}"
             _LOGGER.info("Set model to: %s", device_info["model"])
         else:
-            _LOGGER.warning("Could not read station type from register %s", REG_PN_TYPE)
+            # Handle invalid or missing model information
+            _LOGGER.warning("Invalid or missing station type value: %s", pn_type)
+            device_info["model"] = "Olife Wallbox"  # Use a generic model name instead of Unknown Unknown
             
         # Connector information
         pn_left = await client.read_holding_registers(REG_PN_LEFT, 1)
@@ -131,7 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         connector_types = {1: "Yazaki", 2: "Mennekes"}
         cable_types = {1: "Socket", 2: "Coil Cable", 3: "Straight Cable"}
         
-        if pn_left:
+        if pn_left and pn_left[0] < 100:  # Sanity check for valid values
             left_type = pn_left[0] // 10  # First digit
             left_cable = pn_left[0] % 10  # Second digit
             _LOGGER.info("Decoded left connector: type=%s, cable=%s", left_type, left_cable)
@@ -139,8 +141,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             left_cable_str = cable_types.get(left_cable, "Unknown")
             device_info["connector_left"] = f"{left_type_str} {left_cable_str}"
             _LOGGER.info("Set connector_left to: %s", device_info["connector_left"])
+        else:
+            # Handle invalid or missing connector information
+            _LOGGER.warning("Invalid or missing left connector value: %s", pn_left)
+            device_info["connector_left"] = "Type 2"  # Default to most common type
             
-        if pn_right:
+        if pn_right and pn_right[0] < 100:  # Sanity check for valid values
             right_type = pn_right[0] // 10  # First digit
             right_cable = pn_right[0] % 10  # Second digit
             _LOGGER.info("Decoded right connector: type=%s, cable=%s", right_type, right_cable)
@@ -148,6 +154,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             right_cable_str = cable_types.get(right_cable, "Unknown")
             device_info["connector_right"] = f"{right_type_str} {right_cable_str}"
             _LOGGER.info("Set connector_right to: %s", device_info["connector_right"])
+        else:
+            # Handle invalid or missing connector information
+            _LOGGER.warning("Invalid or missing right connector value: %s", pn_right)
+            device_info["connector_right"] = "Type 2"  # Default to most common type
             
         # Number of connectors
         num_connectors = await client.read_holding_registers(REG_NUM_CONNECTORS, 1)
@@ -183,14 +193,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         device_unique_id = f"{host}_{port}_{slave_id}"
         
         # Create a more detailed model name that includes connector information
-        model_info = device_info.get("model", "Wallbox")
+        model_info = device_info.get("model", "Olife Wallbox")
+        
+        # If model info contains "Unknown", replace with a more generic term
+        if "Unknown Unknown" in model_info:
+            model_info = "Olife Wallbox"
+        
         connector_info = []
         
         if "connector_left" in device_info:
-            connector_info.append(f"Left: {device_info['connector_left']}")
+            connector_left = device_info["connector_left"]
+            # Only add connector info if it's not Unknown Unknown
+            if connector_left and "Unknown Unknown" not in connector_left:
+                connector_info.append(f"Left: {connector_left}")
+            elif device_info.get("num_connectors", 1) > 0:
+                connector_info.append("Left: Type 2")
         
         if "connector_right" in device_info:
-            connector_info.append(f"Right: {device_info['connector_right']}")
+            connector_right = device_info["connector_right"]
+            # Only add connector info if it's not Unknown Unknown
+            if connector_right and "Unknown Unknown" not in connector_right:
+                connector_info.append(f"Right: {connector_right}")
+            elif device_info.get("num_connectors", 1) > 0:
+                connector_info.append("Right: Type 2")
         
         if connector_info:
             detailed_model = f"{model_info} ({', '.join(connector_info)})"
