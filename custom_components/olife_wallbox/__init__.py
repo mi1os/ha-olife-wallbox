@@ -4,8 +4,9 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE_ID, CONF_NAME
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 
 from .const import (
     DOMAIN, 
@@ -141,6 +142,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_info.get("sw_version", "Unknown"),
             device_info.get("serial_number", "Unknown"),
             device_info.get("num_connectors", 1)
+        )
+        
+        # Make sure the device registry has the correct model info
+        # Create a unique ID for the device
+        device_unique_id = f"{host}_{port}_{slave_id}"
+        device_name = entry.data.get(CONF_NAME, "Olife Wallbox")
+        
+        # Update device registry with the latest model information
+        device_registry = dr.async_get(hass)
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, device_unique_id)},
+            name=device_name,
+            manufacturer="Olife Energy",
+            model=device_info.get("model", "Wallbox"),
+            sw_version=device_info.get("sw_version", "Unknown"),
+            hw_version=device_info.get("hw_version", "Unknown"),
         )
         
         # Determine which platforms to load based on read-only setting
