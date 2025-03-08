@@ -55,10 +55,14 @@ Available options include:
 
 This integration automatically detects the number of connectors (charging cables) your Olife Wallbox has:
 
-- Single connector Wallboxes use registers 2000-2026 and 4000-4019
-- Dual connector Wallboxes have a second set of registers 2100-2126 and 4100-4119
+- Single connector Wallboxes typically use the right side connector (Connector B) registers 2100-2126 and 4100-4119
+- Dual connector Wallboxes have both left and right connectors (Connector A and Connector B):
+  - Left side (Connector A) uses registers 2000-2026 and 4000-4019
+  - Right side (Connector B) uses registers 2100-2126 and 4100-4119
 
-For dual connector installations, entities are created for each connector and clearly labeled with "Connector 1" and "Connector 2" suffixes. Each connector appears as a separate device in Home Assistant, allowing for easy identification and control.
+For dual connector installations, entities are created for each connector and clearly labeled with "Connector A" (left) and "Connector B" (right) suffixes. Each connector appears as a separate device in Home Assistant, allowing for easy identification and control.
+
+Note: Some Wallbox versions may only use the right side B connector even in single-connector configurations.
 
 ## Available Sensors
 
