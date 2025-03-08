@@ -38,56 +38,71 @@ from .const import (
     CONF_SCAN_INTERVAL,
     FAST_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
-    # Register addresses
-    REG_WALLBOX_EV_STATE,
-    REG_CURRENT_LIMIT,
-    REG_MAX_STATION_CURRENT,
+    CONF_ENABLE_PHASE_SENSORS,
+    DEFAULT_ENABLE_PHASE_SENSORS,
+    CONF_ENABLE_ERROR_SENSORS,
+    DEFAULT_ENABLE_ERROR_SENSORS,
+    CONF_ENABLE_DAILY_ENERGY,
+    DEFAULT_ENABLE_DAILY_ENERGY,
+    CONF_ENABLE_MONTHLY_ENERGY,
+    DEFAULT_ENABLE_MONTHLY_ENERGY,
+    CONF_ENABLE_YEARLY_ENERGY,
+    DEFAULT_ENABLE_YEARLY_ENERGY,
+    REG_WALLBOX_EV_STATE_A,
+    REG_WALLBOX_EV_STATE_B,
+    REG_CURRENT_LIMIT_A,
+    REG_CURRENT_LIMIT_B,
+    REG_CHARGE_CURRENT_A,
+    REG_CHARGE_CURRENT_B,
+    REG_CHARGE_ENERGY_A,
+    REG_CHARGE_ENERGY_B,
+    REG_CHARGE_POWER_A,
+    REG_CHARGE_POWER_B,
+    REG_ERROR_A,
+    REG_ERROR_B,
+    REG_CP_STATE_A,
+    REG_CP_STATE_B,
+    REG_PREV_CP_STATE_A,
+    REG_PREV_CP_STATE_B,
+    REG_MAX_STATION_CURRENT_A,
+    REG_MAX_STATION_CURRENT_B,
     REG_LED_PWM,
-    REG_CHARGE_CURRENT,
-    REG_CHARGE_ENERGY,
-    REG_CHARGE_POWER,
-    REG_ERROR,
-    REG_CP_STATE,
-    REG_PREV_CP_STATE,
-    REG_POWER_L1,
-    REG_CURRENT_L1,
-    REG_VOLTAGE_L1,
-    REG_ENERGY_L1,
-    REG_ENERGY_L2,
-    REG_ENERGY_L3,
-    REG_ENERGY_SUM,
-    REG_POWER_SUM,
-    REG_ENERGY_FLASH,
-    # State mappings
+    REG_ENERGY_SUM_A,
+    REG_ENERGY_SUM_B,
+    REG_POWER_L1_A,
+    REG_POWER_L1_B,
+    REG_POWER_L2_A,
+    REG_POWER_L2_B,
+    REG_POWER_L3_A,
+    REG_POWER_L3_B,
+    REG_POWER_SUM_A,
+    REG_POWER_SUM_B,
+    REG_CURRENT_L1_A,
+    REG_CURRENT_L1_B,
+    REG_CURRENT_L2_A,
+    REG_CURRENT_L2_B,
+    REG_CURRENT_L3_A,
+    REG_CURRENT_L3_B,
+    REG_VOLTAGE_L1_A,
+    REG_VOLTAGE_L1_B,
+    REG_VOLTAGE_L2_A,
+    REG_VOLTAGE_L2_B,
+    REG_VOLTAGE_L3_A,
+    REG_VOLTAGE_L3_B,
+    REG_ENERGY_L1_A,
+    REG_ENERGY_L1_B,
+    REG_ENERGY_L2_A,
+    REG_ENERGY_L2_B,
+    REG_ENERGY_L3_A,
+    REG_ENERGY_L3_B,
+    REG_ENERGY_FLASH_A,
+    REG_ENERGY_FLASH_B,
     WALLBOX_EV_STATES,
+    WALLBOX_EV_STATE_DESCRIPTIONS,
     WALLBOX_EV_STATE_ICONS,
     CP_STATES,
+    CP_STATE_DESCRIPTIONS,
     CP_STATE_ICONS,
-    # Configuration options
-    CONF_ENABLE_PHASE_SENSORS,
-    CONF_ENABLE_ERROR_SENSORS,
-    CONF_ENABLE_DAILY_ENERGY,
-    CONF_ENABLE_MONTHLY_ENERGY,
-    CONF_ENABLE_YEARLY_ENERGY,
-    DEFAULT_ENABLE_PHASE_SENSORS,
-    DEFAULT_ENABLE_ERROR_SENSORS,
-    DEFAULT_ENABLE_DAILY_ENERGY,
-    DEFAULT_ENABLE_MONTHLY_ENERGY,
-    DEFAULT_ENABLE_YEARLY_ENERGY,
-    # Connector 2 registers
-    REG_WALLBOX_EV_STATE_2,
-    REG_ERROR_2,
-    REG_CP_STATE_2,
-    REG_PREV_CP_STATE_2,
-    REG_POWER_L1_2,
-    REG_CURRENT_L1_2,
-    REG_VOLTAGE_L1_2,
-    REG_ENERGY_L1_2,
-    REG_ENERGY_L2_2,
-    REG_ENERGY_L3_2,
-    REG_ENERGY_SUM_2,
-    REG_POWER_SUM_2,
-    REG_ENERGY_FLASH_2,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -193,16 +208,16 @@ async def async_setup_entry(
             data["connector_1"] = {}
 
             # Read wallbox state
-            wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE, 1)
+            wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE_A, 1)
             
             # Read current limit
-            current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT, 1)
+            current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT_A, 1)
             
             # Read charge current (same as current limit in this register mapping)
-            charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT, 1)
+            charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT_A, 1)
             
             # Read max station current (which is the PP current limit)
-            max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
+            max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT_A, 1)
             
             # Read LED PWM (global setting)
             led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
@@ -224,30 +239,30 @@ async def async_setup_entry(
                 data["connector_1"]["led_pwm"] = led_pwm[0]
                 
             # Read total energy (as charge energy)
-            energy_sum = await client.read_holding_registers(REG_ENERGY_SUM, 1)
+            energy_sum = await client.read_holding_registers(REG_ENERGY_SUM_A, 1)
             if energy_sum is not None:
                 data["connector_1"]["charge_energy"] = energy_sum[0]
                 
             # Read power of phase 1 (as charge power for simplicity)
-            power_l1 = await client.read_holding_registers(REG_POWER_L1, 1)
+            power_l1 = await client.read_holding_registers(REG_POWER_L1_A, 1)
             if power_l1 is not None:
                 data["connector_1"]["charge_power"] = power_l1[0]
             
             # Read the summary energy value
-            energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM, 2)
+            energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM_A, 2)
             if energy_sum_extended is not None and len(energy_sum_extended) >= 2:
                 data["connector_1"]["energy_sum"] = energy_sum_extended[0] + (energy_sum_extended[1] << 16)
                 
             # Only read error and CP state sensors if enabled
             if enable_error_sensors:
                 # Read error code
-                error_code = await client.read_holding_registers(REG_ERROR, 1)
+                error_code = await client.read_holding_registers(REG_ERROR_A, 1)
                 
                 # Read CP state
-                cp_state = await client.read_holding_registers(REG_CP_STATE, 1)
+                cp_state = await client.read_holding_registers(REG_CP_STATE_A, 1)
                 
                 # Read Previous CP state
-                prev_cp_state = await client.read_holding_registers(REG_PREV_CP_STATE, 1)
+                prev_cp_state = await client.read_holding_registers(REG_PREV_CP_STATE_A, 1)
                 
                 # Add the error register values to the data
                 if error_code is not None:
@@ -262,25 +277,25 @@ async def async_setup_entry(
             # Only read phase measurements if enabled
             if enable_phase_sensors:
                 # Read phase power measurements
-                power_phases = await client.read_holding_registers(REG_POWER_L1, 3)
+                power_phases = await client.read_holding_registers(REG_POWER_L1_A, 3)
                 
                 # Read total power (sum of all phases)
-                power_sum = await client.read_holding_registers(REG_POWER_SUM, 1)
+                power_sum = await client.read_holding_registers(REG_POWER_SUM_A, 1)
                 
                 # Read phase current measurements
-                current_phases = await client.read_holding_registers(REG_CURRENT_L1, 3)
+                current_phases = await client.read_holding_registers(REG_CURRENT_L1_A, 3)
                 
                 # Read phase voltage measurements
-                voltage_phases = await client.read_holding_registers(REG_VOLTAGE_L1, 3)
+                voltage_phases = await client.read_holding_registers(REG_VOLTAGE_L1_A, 3)
                 
                 # Read phase energy measurements
                 energy_phases = []
-                energy_l1 = await client.read_holding_registers(REG_ENERGY_L1, 2)
-                energy_l2 = await client.read_holding_registers(REG_ENERGY_L2, 2)
-                energy_l3 = await client.read_holding_registers(REG_ENERGY_L3, 2)
+                energy_l1 = await client.read_holding_registers(REG_ENERGY_L1_A, 2)
+                energy_l2 = await client.read_holding_registers(REG_ENERGY_L2_A, 2)
+                energy_l3 = await client.read_holding_registers(REG_ENERGY_L3_A, 2)
                 
                 # Read energy flash (saved to flash every 24 hours)
-                energy_flash = await client.read_holding_registers(REG_ENERGY_FLASH, 2)
+                energy_flash = await client.read_holding_registers(REG_ENERGY_FLASH_A, 2)
                 
                 if energy_l1 is not None and len(energy_l1) >= 2:
                     energy_phases.append(energy_l1[0] + (energy_l1[1] << 16))
@@ -335,10 +350,10 @@ async def async_setup_entry(
                 data["connector_2"] = {}
                 
                 # Second connector data
-                wallbox_ev_state_2 = await client.read_holding_registers(REG_WALLBOX_EV_STATE_2, 1)
-                current_limit_2 = await client.read_holding_registers(REG_CURRENT_LIMIT_2, 1)
-                charge_current_2 = await client.read_holding_registers(REG_CHARGE_CURRENT_2, 1)
-                max_station_current_2 = await client.read_holding_registers(REG_MAX_STATION_CURRENT_2, 1)
+                wallbox_ev_state_2 = await client.read_holding_registers(REG_WALLBOX_EV_STATE_B, 1)
+                current_limit_2 = await client.read_holding_registers(REG_CURRENT_LIMIT_B, 1)
+                charge_current_2 = await client.read_holding_registers(REG_CHARGE_CURRENT_B, 1)
+                max_station_current_2 = await client.read_holding_registers(REG_MAX_STATION_CURRENT_B, 1)
                 
                 if wallbox_ev_state_2 is not None:
                     data["connector_2"]["wallbox_ev_state"] = wallbox_ev_state_2[0]
@@ -357,20 +372,20 @@ async def async_setup_entry(
                     data["connector_2"]["led_pwm"] = led_pwm[0]
                 
                 # Read total energy (as charge energy) for connector 2
-                energy_sum_2 = await client.read_holding_registers(REG_ENERGY_SUM_2, 1)
+                energy_sum_2 = await client.read_holding_registers(REG_ENERGY_SUM_B, 1)
                 if energy_sum_2 is not None:
                     data["connector_2"]["charge_energy"] = energy_sum_2[0]
                 
                 # Read power of phase 1 (as charge power for simplicity) for connector 2
-                power_l1_2 = await client.read_holding_registers(REG_POWER_L1_2, 1)
+                power_l1_2 = await client.read_holding_registers(REG_POWER_L1_B, 1)
                 if power_l1_2 is not None:
                     data["connector_2"]["charge_power"] = power_l1_2[0]
                 
                 # Only read error and CP state sensors if enabled
                 if enable_error_sensors:
-                    error_code_2 = await client.read_holding_registers(REG_ERROR_2, 1)
-                    cp_state_2 = await client.read_holding_registers(REG_CP_STATE_2, 1)
-                    prev_cp_state_2 = await client.read_holding_registers(REG_PREV_CP_STATE_2, 1)
+                    error_code_2 = await client.read_holding_registers(REG_ERROR_B, 1)
+                    cp_state_2 = await client.read_holding_registers(REG_CP_STATE_B, 1)
+                    prev_cp_state_2 = await client.read_holding_registers(REG_PREV_CP_STATE_B, 1)
                     
                     if error_code_2 is not None:
                         data["connector_2"]["error_code"] = error_code_2[0]
@@ -383,21 +398,21 @@ async def async_setup_entry(
                 
                 # Only read phase measurements if enabled
                 if enable_phase_sensors:
-                    power_phases_2 = await client.read_holding_registers(REG_POWER_L1_2, 3)
+                    power_phases_2 = await client.read_holding_registers(REG_POWER_L1_B, 3)
                     
                     # Read total power (sum of all phases) for connector 2
-                    power_sum_2 = await client.read_holding_registers(REG_POWER_SUM_2, 1)
+                    power_sum_2 = await client.read_holding_registers(REG_POWER_SUM_B, 1)
                     
-                    current_phases_2 = await client.read_holding_registers(REG_CURRENT_L1_2, 3)
-                    voltage_phases_2 = await client.read_holding_registers(REG_VOLTAGE_L1_2, 3)
+                    current_phases_2 = await client.read_holding_registers(REG_CURRENT_L1_B, 3)
+                    voltage_phases_2 = await client.read_holding_registers(REG_VOLTAGE_L1_B, 3)
                     
                     energy_phases_2 = []
-                    energy_l1_2 = await client.read_holding_registers(REG_ENERGY_L1_2, 2)
-                    energy_l2_2 = await client.read_holding_registers(REG_ENERGY_L2_2, 2)
-                    energy_l3_2 = await client.read_holding_registers(REG_ENERGY_L3_2, 2)
+                    energy_l1_2 = await client.read_holding_registers(REG_ENERGY_L1_B, 2)
+                    energy_l2_2 = await client.read_holding_registers(REG_ENERGY_L2_B, 2)
+                    energy_l3_2 = await client.read_holding_registers(REG_ENERGY_L3_B, 2)
                     
                     # Read energy flash for connector 2
-                    energy_flash_2 = await client.read_holding_registers(REG_ENERGY_FLASH_2, 2)
+                    energy_flash_2 = await client.read_holding_registers(REG_ENERGY_FLASH_B, 2)
                     
                     if energy_l1_2 is not None and len(energy_l1_2) >= 2:
                         energy_phases_2.append(energy_l1_2[0] + (energy_l1_2[1] << 16))
@@ -447,7 +462,7 @@ async def async_setup_entry(
                         data["connector_2"]["energy_flash"] = energy_flash_2[0] + (energy_flash_2[1] << 16)
                 
                 # Read the summary energy value for connector 2
-                energy_sum_2_extended = await client.read_holding_registers(REG_ENERGY_SUM_2, 2)
+                energy_sum_2_extended = await client.read_holding_registers(REG_ENERGY_SUM_B, 2)
                 if energy_sum_2_extended is not None and len(energy_sum_2_extended) >= 2:
                     data["connector_2"]["energy_sum"] = energy_sum_2_extended[0] + (energy_sum_2_extended[1] << 16)
             
@@ -727,22 +742,19 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
 
     @property
     def native_value(self):
-        """Return the state of the sensor as human-readable text."""
-        if not self.available:
-            return None
-            
+        """Return the state of the sensor (human-readable text)."""
+        # Get the raw state
         raw_state = self._get_value_from_data()
+        
         if raw_state is None:
             return None
             
-        self._raw_state = raw_state
-        
         # Convert state to human-readable text
         if raw_state in WALLBOX_EV_STATES:
             return WALLBOX_EV_STATES[raw_state]
         else:
             if self._should_log_error():
-                _LOGGER.warning("Unknown EV state value: %s", raw_state)
+                _LOGGER.warning("Unknown EV state: %s", raw_state)
             return f"Unknown ({raw_state})"
             
     @property
@@ -1370,22 +1382,19 @@ class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
 
     @property
     def native_value(self):
-        """Return the state of the sensor as human-readable text."""
-        if not self.available:
-            return None
-            
+        """Return the state of the sensor (human-readable text)."""
+        # Get the raw state
         raw_state = self._get_value_from_data()
+        
         if raw_state is None:
             return None
             
-        self._raw_state = raw_state
-        
         # Convert state to human-readable text
         if raw_state in CP_STATES:
             return CP_STATES[raw_state]
         else:
             if self._should_log_error():
-                _LOGGER.warning("Unknown CP state value: %s", raw_state)
+                _LOGGER.warning("Unknown CP state: %s", raw_state)
             return f"Unknown ({raw_state})"
             
     @property

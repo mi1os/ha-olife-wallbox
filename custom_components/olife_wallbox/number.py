@@ -20,9 +20,13 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     DOMAIN,
     CONF_SLAVE_ID,
-    REG_CURRENT_LIMIT,
+    CONF_READ_ONLY,
+    DEFAULT_READ_ONLY,
+    REG_CURRENT_LIMIT_A,
+    REG_CURRENT_LIMIT_B,
     REG_LED_PWM,
-    REG_MAX_STATION_CURRENT,
+    REG_MAX_STATION_CURRENT_A,
+    REG_MAX_STATION_CURRENT_B,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -165,7 +169,7 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
                 scaled_value = 32
                 _LOGGER.warning("Current limit value above maximum, setting to 32")
             
-            if await self._client.write_register(REG_CURRENT_LIMIT, scaled_value):
+            if await self._client.write_register(REG_CURRENT_LIMIT_A, scaled_value):
                 self._value = value
                 self._error_count = 0
                 _LOGGER.info("Current limit set to: %s", value)
@@ -190,7 +194,7 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
-            result = await self._client.read_holding_registers(REG_CURRENT_LIMIT, 1)
+            result = await self._client.read_holding_registers(REG_CURRENT_LIMIT_A, 1)
             if result is not None:
                 self._available = True
                 self._value = result[0]
@@ -378,7 +382,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
-            result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
+            result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT_A, 1)
             if result is not None:
                 self._available = True
                 self._value = result[0]

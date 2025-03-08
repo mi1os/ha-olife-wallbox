@@ -10,11 +10,17 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
-    DOMAIN, 
-    REG_CURRENT_LIMIT, 
-    REG_CHARGING_ENABLE,
-    REG_MAX_STATION_CURRENT,
-    REG_LED_PWM
+    DOMAIN,
+    CONF_HOST,
+    CONF_PORT,
+    CONF_SLAVE_ID,
+    REG_CHARGING_ENABLE_A,
+    REG_CHARGING_ENABLE_B,
+    REG_CURRENT_LIMIT_A,
+    REG_CURRENT_LIMIT_B,
+    REG_MAX_STATION_CURRENT_A,
+    REG_MAX_STATION_CURRENT_B,
+    REG_LED_PWM,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -100,7 +106,7 @@ async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool)
     try:
         client = await _get_client_for_device(hass, device_id)
         value = 1 if enable else 0
-        if await client.write_register(REG_CHARGING_ENABLE, value):
+        if await client.write_register(REG_CHARGING_ENABLE_A if enable else REG_CHARGING_ENABLE_B, value):
             action = "enabled" if enable else "disabled"
             _LOGGER.info("Charging %s for device %s", action, device_id)
             
@@ -132,7 +138,7 @@ async def _set_current_limit(hass: HomeAssistant, device_id: str, current_limit:
     """Set the current limit of a wallbox."""
     try:
         client = await _get_client_for_device(hass, device_id)
-        if await client.write_register(REG_CURRENT_LIMIT, current_limit):
+        if await client.write_register(REG_CURRENT_LIMIT_A if current_limit < 16 else REG_CURRENT_LIMIT_B, current_limit):
             _LOGGER.info("Current limit set to %s A for device %s", current_limit, device_id)
             
             # Update number state for better responsiveness

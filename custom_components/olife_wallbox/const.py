@@ -139,108 +139,21 @@ REG_CHARGING_ENABLE_B = 2101        # Using verify user as charging enable (conn
 REG_AUTOMATIC_B = 2101             # Not directly available, using verify user (connector B)
 
 # Device information registers
-REG_DEVICE_INFO_START = 6000      # Device information start
-REG_FLASH_STATE = 6000            # 0 - data v RAM; 1 = data ve FLASH
-REG_HW_VERSION = 6001             # Hardware version (hw revision)
-REG_SW_VERSION = 6002             # Software version (sw revision)
-REG_SN_FIRST_PART = 6003          # First 3 numbers of serial number (e.g. "014")
-REG_SN_FIRST_RESERVE = 6004       # Serial number reserve
-REG_SN_LAST_PART = 6005           # Last 3 numbers of serial number (e.g. "014")
-REG_SN_LAST_RESERVE = 6006         # Serial number reserve
-REG_PN_TYPE = 6007                 # Type of station, two numbers. First numb.: WB = 1, DB = 2, ST = 3, second number: Base = 1 Smart = 2 (e.g. "32" = ST SMART)
-REG_PN_LEFT = 6008                 # Left - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
-REG_PN_RIGHT = 6009                # Right - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
-REG_PN_RESERVE = 6010               # Reserve
-REG_YEAR_MONTH = 6011               # 'YYMM (YY year, MM month, )' e.g. "2107"
-REG_DAY_HOUR = 6012                   # DDHH (DD Day, HH hour) e.g. "3015"
-REG_NUM_CONNECTORS = 6015            # Connector count (active connectors)
-
-# For backward compatibility (deprecated - will be removed in future versions)
-REG_ERROR = REG_ERROR_A
-REG_VERIFY_USER = REG_VERIFY_USER_A
-REG_CP_STATE = REG_CP_STATE_A
-REG_PREV_CP_STATE = REG_PREV_CP_STATE_A
-REG_WALLBOX_EV_STATE = REG_WALLBOX_EV_STATE_A
-REG_PREV_EV_STATE = REG_PREV_EV_STATE_A
-REG_CLOUD_CURRENT_LIMIT = REG_CLOUD_CURRENT_LIMIT_A
-REG_CURRENT_LIMIT = REG_CURRENT_LIMIT_A
-REG_PP_CURRENT_LIMIT = REG_PP_CURRENT_LIMIT_A
-REG_CONTACTOR_STATE = REG_CONTACTOR_STATE_A
-REG_CP_PWM_STATE = REG_CP_PWM_STATE_A
-REG_CP_HIGH = REG_CP_HIGH_A
-REG_CP_LOW = REG_CP_LOW_A
-REG_LOCK_STATE = REG_LOCK_STATE_A
-REG_LOCK_SENSOR = REG_LOCK_SENSOR_A
-REG_PP_RESISTOR = REG_PP_RESISTOR_A
-REG_LED_STATE = REG_LED_STATE_A
-REG_ADC_CP = REG_ADC_CP_A
-REG_ADC_PP = REG_ADC_PP_A
-REG_LOCK_RELEASE = REG_LOCK_RELEASE_A
-REG_EXTERNAL_CURRENT_CONTROL = REG_EXTERNAL_CURRENT_CONTROL_A
-REG_POWER_L1 = REG_POWER_L1_A
-REG_POWER_L2 = REG_POWER_L2_A
-REG_POWER_L3 = REG_POWER_L3_A
-REG_POWER_SUM = REG_POWER_SUM_A
-REG_CURRENT_L1 = REG_CURRENT_L1_A
-REG_CURRENT_L2 = REG_CURRENT_L2_A
-REG_CURRENT_L3 = REG_CURRENT_L3_A
-REG_VOLTAGE_L1 = REG_VOLTAGE_L1_A
-REG_VOLTAGE_L2 = REG_VOLTAGE_L2_A
-REG_VOLTAGE_L3 = REG_VOLTAGE_L3_A
-REG_ENERGY_L1 = REG_ENERGY_L1_A
-REG_ENERGY_L2 = REG_ENERGY_L2_A
-REG_ENERGY_L3 = REG_ENERGY_L3_A
-REG_ENERGY_SUM = REG_ENERGY_SUM_A
-REG_ENERGY_FLASH = REG_ENERGY_FLASH_A
-REG_CHARGE_CURRENT = REG_CHARGE_CURRENT_A
-REG_CHARGE_ENERGY = REG_CHARGE_ENERGY_A
-REG_CHARGE_POWER = REG_CHARGE_POWER_A
-REG_MAX_STATION_CURRENT = REG_MAX_STATION_CURRENT_A
-REG_CHARGING_ENABLE = REG_CHARGING_ENABLE_A
-REG_AUTOMATIC = REG_AUTOMATIC_A
-
-REG_ERROR_2 = REG_ERROR_B
-REG_VERIFY_USER_2 = REG_VERIFY_USER_B
-REG_CP_STATE_2 = REG_CP_STATE_B
-REG_PREV_CP_STATE_2 = REG_PREV_CP_STATE_B
-REG_WALLBOX_EV_STATE_2 = REG_WALLBOX_EV_STATE_B
-REG_PREV_EV_STATE_2 = REG_PREV_EV_STATE_B
-REG_CLOUD_CURRENT_LIMIT_2 = REG_CLOUD_CURRENT_LIMIT_B
-REG_CURRENT_LIMIT_2 = REG_CURRENT_LIMIT_B
-REG_PP_CURRENT_LIMIT_2 = REG_PP_CURRENT_LIMIT_B
-REG_CONTACTOR_STATE_2 = REG_CONTACTOR_STATE_B
-REG_CP_PWM_STATE_2 = REG_CP_PWM_STATE_B
-REG_CP_HIGH_2 = REG_CP_HIGH_B
-REG_CP_LOW_2 = REG_CP_LOW_B
-REG_LOCK_STATE_2 = REG_LOCK_STATE_B
-REG_LOCK_SENSOR_2 = REG_LOCK_SENSOR_B
-REG_PP_RESISTOR_2 = REG_PP_RESISTOR_B
-REG_LED_STATE_2 = REG_LED_STATE_B
-REG_ADC_CP_2 = REG_ADC_CP_B
-REG_ADC_PP_2 = REG_ADC_PP_B
-REG_LOCK_RELEASE_2 = REG_LOCK_RELEASE_B
-REG_EXTERNAL_CURRENT_CONTROL_2 = REG_EXTERNAL_CURRENT_CONTROL_B
-REG_POWER_L1_2 = REG_POWER_L1_B
-REG_POWER_L2_2 = REG_POWER_L2_B
-REG_POWER_L3_2 = REG_POWER_L3_B
-REG_POWER_SUM_2 = REG_POWER_SUM_B
-REG_CURRENT_L1_2 = REG_CURRENT_L1_B
-REG_CURRENT_L2_2 = REG_CURRENT_L2_B
-REG_CURRENT_L3_2 = REG_CURRENT_L3_B
-REG_VOLTAGE_L1_2 = REG_VOLTAGE_L1_B
-REG_VOLTAGE_L2_2 = REG_VOLTAGE_L2_B
-REG_VOLTAGE_L3_2 = REG_VOLTAGE_L3_B
-REG_ENERGY_L1_2 = REG_ENERGY_L1_B
-REG_ENERGY_L2_2 = REG_ENERGY_L2_B
-REG_ENERGY_L3_2 = REG_ENERGY_L3_B
-REG_ENERGY_SUM_2 = REG_ENERGY_SUM_B
-REG_ENERGY_FLASH_2 = REG_ENERGY_FLASH_B
-REG_CHARGE_CURRENT_2 = REG_CHARGE_CURRENT_B
-REG_CHARGE_ENERGY_2 = REG_CHARGE_ENERGY_B
-REG_CHARGE_POWER_2 = REG_CHARGE_POWER_B
-REG_MAX_STATION_CURRENT_2 = REG_MAX_STATION_CURRENT_B
-REG_CHARGING_ENABLE_2 = REG_CHARGING_ENABLE_B
-REG_AUTOMATIC_2 = REG_AUTOMATIC_B
+REG_DEVICE_INFO_START = 6000   # Device information start
+REG_FLASH_STATE = 6000         # 0 - data v RAM; 1 = data ve FLASH
+REG_HW_VERSION = 6001          # Hardware version (hw revision)
+REG_SW_VERSION = 6002          # Software version (sw revision)
+REG_SN_FIRST_PART = 6003       # First 3 numbers of serial number (e.g. "014")
+REG_SN_FIRST_RESERVE = 6004    # Serial number reserve
+REG_SN_LAST_PART = 6005        # Last 3 numbers of serial number (e.g. "014")
+REG_SN_LAST_RESERVE = 6006     # Serial number reserve
+REG_PN_TYPE = 6007             # Type of station, two numbers. First numb.: WB = 1, DB = 2, ST = 3, second number: Base = 1 Smart = 2 (e.g. "32" = ST SMART)
+REG_PN_LEFT = 6008             # Left - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RIGHT = 6009            # Right - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RESERVE = 6010          # Reserve
+REG_YEAR_MONTH = 6011          # 'YYMM (YY year, MM month, )' e.g. "2107"
+REG_DAY_HOUR = 6012            # DDHH (DD Day, HH hour) e.g. "3015"
+REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
 
 # CP State values
 

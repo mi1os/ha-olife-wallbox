@@ -20,9 +20,14 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     DOMAIN,
     CONF_SLAVE_ID,
-    REG_CHARGING_ENABLE,
-    REG_VERIFY_USER,
-    REG_AUTOMATIC,
+    CONF_READ_ONLY,
+    DEFAULT_READ_ONLY,
+    REG_CHARGING_ENABLE_A,
+    REG_CHARGING_ENABLE_B,
+    REG_VERIFY_USER_A,
+    REG_VERIFY_USER_B,
+    REG_AUTOMATIC_A,
+    REG_AUTOMATIC_B,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -213,7 +218,7 @@ class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:ev-station"
-        self._register = REG_CHARGING_ENABLE
+        self._register = REG_CHARGING_ENABLE_A
 
     @property
     def name(self):
@@ -239,7 +244,7 @@ class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:check-decagram-outline"
-        self._register = REG_VERIFY_USER
+        self._register = REG_VERIFY_USER_A
 
     @property
     def name(self):
@@ -265,7 +270,7 @@ class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:check-decagram"
-        self._register = REG_AUTOMATIC
+        self._register = REG_AUTOMATIC_A
 
     @property
     def name(self):
