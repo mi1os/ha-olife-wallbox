@@ -4,7 +4,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE_ID, CONF_NAME
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
@@ -13,6 +13,7 @@ from .const import (
     PLATFORMS,
     CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
+    CONF_SLAVE_ID,
     REG_HW_VERSION,
     REG_SW_VERSION,
     REG_NUM_CONNECTORS,
