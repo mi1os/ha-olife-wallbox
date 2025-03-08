@@ -32,128 +32,215 @@ DEFAULT_READ_ONLY = False
 # Global station registers (not connector-specific)
 REG_LED_PWM = 5008             # LED PWM value (global station setting)
 
-# Connector 1 Registers (2000-2026, 4000-4019)
+# Connector A Registers (2000-2026, 4000-4019)
 # EVSE-A registers
-REG_ERROR = 2000               # Error in binary code
-REG_VERIFY_USER = 2001         # Verify user by (cloud,rfid). If register is in 1 -> charging is enable
-REG_CP_STATE = 2002            # Actual state on cp conductor
-REG_PREV_CP_STATE = 2003       # Last CP state
-REG_WALLBOX_EV_STATE = 2004    # Actual EV state
-REG_PREV_EV_STATE = 2005       # Previous EV state
-REG_CLOUD_CURRENT_LIMIT = 2006 # Current limit set by external devices (Cloud, Mobile app, etc.)
-REG_CURRENT_LIMIT = 2007       # Actual set current - PP limit, ext. current regulator, cloudu, dipSwitches
-REG_PP_CURRENT_LIMIT = 2008    # Current limit by PP resistor
-REG_CONTACTOR_STATE = 2009     # Main contactor state
-REG_CP_PWM_STATE = 2010        # Actual PWM value
-REG_CP_HIGH = 2011             # Voltage of possitive PWM pulse
-REG_CP_LOW = 2012              # Voltage of negative PWM pulse
-REG_LOCK_STATE = 2013          # Lock state: 1=locked, 2=unlocked, 3=unlocking, 4=locking 0=uknown
-REG_LOCK_SENSOR = 2014         # End sensor  1=locked, 2=unlocked, 0=uknown
-REG_PP_RESISTOR = 2015         # PP resistor value
-REG_LED_STATE = 2016           # Led state
-REG_ADC_CP = 2017              # Value of CP in AD converter
-REG_ADC_PP = 2018              # Value of PP in AD converter
-REG_LOCK_RELEASE = 2019        # Emergency release of lock
-REG_EXTERNAL_CURRENT_CONTROL = 2020 # External current control
+REG_ERROR_A = 2000              # Error in binary code
+REG_VERIFY_USER_A = 2001        # Verify user by (cloud,rfid). If register is in 1 -> charging is enable
+REG_CP_STATE_A = 2002           # Actual state on cp conductor
+REG_PREV_CP_STATE_A = 2003      # Last CP state
+REG_WALLBOX_EV_STATE_A = 2004   # Actual EV state
+REG_PREV_EV_STATE_A = 2005      # Previous EV state
+REG_CLOUD_CURRENT_LIMIT_A = 2006 # Current limit set by external devices (Cloud, Mobile app, etc.)
+REG_CURRENT_LIMIT_A = 2007      # Actual set current - PP limit, ext. current regulator, cloudu, dipSwitches
+REG_PP_CURRENT_LIMIT_A = 2008   # Current limit by PP resistor
+REG_CONTACTOR_STATE_A = 2009    # Main contactor state
+REG_CP_PWM_STATE_A = 2010       # Actual PWM value
+REG_CP_HIGH_A = 2011            # Voltage of possitive PWM pulse
+REG_CP_LOW_A = 2012             # Voltage of negative PWM pulse
+REG_LOCK_STATE_A = 2013         # Lock state: 1=locked, 2=unlocked, 3=unlocking, 4=locking 0=uknown
+REG_LOCK_SENSOR_A = 2014        # End sensor  1=locked, 2=unlocked, 0=uknown
+REG_PP_RESISTOR_A = 2015        # PP resistor value
+REG_LED_STATE_A = 2016          # Led state
+REG_ADC_CP_A = 2017             # Value of CP in AD converter
+REG_ADC_PP_A = 2018             # Value of PP in AD converter
+REG_LOCK_RELEASE_A = 2019       # Emergency release of lock
+REG_EXTERNAL_CURRENT_CONTROL_A = 2020 # External current control
 
 # Wattmeter registers
 # Individual phase measurements
-REG_POWER_L1 = 4010            # Power of phase 1 in W truePOWER/RealPOWER
-REG_POWER_L2 = 4011            # Power of phase 2 in W truePOWER/RealPOWER
-REG_POWER_L3 = 4012            # Power of phase 3 in W truePOWER/RealPOWER
-REG_POWER_SUM = 4013           # Power of all phases (1+2+3) in W truePOWER/RealPOWER
+REG_POWER_L1_A = 4010           # Power of phase 1 in W truePOWER/RealPOWER
+REG_POWER_L2_A = 4011           # Power of phase 2 in W truePOWER/RealPOWER
+REG_POWER_L3_A = 4012           # Power of phase 3 in W truePOWER/RealPOWER
+REG_POWER_SUM_A = 4013          # Power of all phases (1+2+3) in W truePOWER/RealPOWER
 
-REG_CURRENT_L1 = 4014          # Current of phase 1 in mA
-REG_CURRENT_L2 = 4015          # Current of phase 2 in mA  
-REG_CURRENT_L3 = 4016          # Current of phase 3 in mA
+REG_CURRENT_L1_A = 4014         # Current of phase 1 in mA
+REG_CURRENT_L2_A = 4015         # Current of phase 2 in mA  
+REG_CURRENT_L3_A = 4016         # Current of phase 3 in mA
 
-REG_VOLTAGE_L1 = 4017          # RMS voltage of phase 1 in 0.1V
-REG_VOLTAGE_L2 = 4018          # RMS voltage of phase 2 in 0.1V
-REG_VOLTAGE_L3 = 4019          # RMS voltage of phase 3 in 0.1V
+REG_VOLTAGE_L1_A = 4017         # RMS voltage of phase 1 in 0.1V
+REG_VOLTAGE_L2_A = 4018         # RMS voltage of phase 2 in 0.1V
+REG_VOLTAGE_L3_A = 4019         # RMS voltage of phase 3 in 0.1V
 
 # Energy measurements
-REG_ENERGY_L1 = 4000           # Energy phase 1 in mWh (x0,001 Wh)
-REG_ENERGY_L2 = 4002           # Energy phase 2 in mWh (x0,001 Wh)
-REG_ENERGY_L3 = 4004           # Energy phase 3 in mWh (x0,001 Wh)
-REG_ENERGY_SUM = 4006          # Total station energy in mWh (x1 Wh)
-REG_ENERGY_FLASH = 4008        # Energy in Wh, saved to flash every 24 hours
+REG_ENERGY_L1_A = 4000          # Energy phase 1 in mWh (x0,001 Wh)
+REG_ENERGY_L2_A = 4002          # Energy phase 2 in mWh (x0,001 Wh)
+REG_ENERGY_L3_A = 4004          # Energy phase 3 in mWh (x0,001 Wh)
+REG_ENERGY_SUM_A = 4006         # Total station energy in mWh (x1 Wh)
+REG_ENERGY_FLASH_A = 4008        # Energy in Wh, saved to flash every 24 hours
 
-# Connector 2 Registers (if present, 2100-2126, 4100-4119)
+# Connector B Registers (if present, 2100-2126, 4100-4119)
 # EVSE-A registers (second connector)
-REG_ERROR_2 = 2100             # Error in binary code (connector 2)
-REG_VERIFY_USER_2 = 2101       # Verify user (connector 2)
-REG_CP_STATE_2 = 2102          # Actual state on cp conductor (connector 2)
-REG_PREV_CP_STATE_2 = 2103     # Last CP state (connector 2)
-REG_WALLBOX_EV_STATE_2 = 2104  # Actual EV state (connector 2)
-REG_PREV_EV_STATE_2 = 2105     # Previous EV state (connector 2)
-REG_CLOUD_CURRENT_LIMIT_2 = 2106 # Current limit set by external devices (connector 2)
-REG_CURRENT_LIMIT_2 = 2107     # Actual set current (connector 2)
-REG_PP_CURRENT_LIMIT_2 = 2108  # Current limit by PP resistor (connector 2)
-REG_CONTACTOR_STATE_2 = 2109   # Main contactor state (connector 2)
-REG_CP_PWM_STATE_2 = 2110      # Actual PWM value (connector 2)
-REG_CP_HIGH_2 = 2111           # Voltage of possitive PWM pulse (connector 2)
-REG_CP_LOW_2 = 2112            # Voltage of negative PWM pulse (connector 2)
-REG_LOCK_STATE_2 = 2113        # Lock state (connector 2)
-REG_LOCK_SENSOR_2 = 2114       # End sensor (connector 2)
-REG_PP_RESISTOR_2 = 2115       # PP resistor value (connector 2)
-REG_LED_STATE_2 = 2116         # Led state (connector 2)
-REG_ADC_CP_2 = 2117            # Value of CP in AD converter (connector 2)
-REG_ADC_PP_2 = 2118            # Value of PP in AD converter (connector 2)
-REG_LOCK_RELEASE_2 = 2119      # Emergency release of lock (connector 2)
-REG_EXTERNAL_CURRENT_CONTROL_2 = 2120 # External current control (connector 2)
+REG_ERROR_B = 2100              # Error in binary code (connector B)
+REG_VERIFY_USER_B = 2101        # Verify user (connector B)
+REG_CP_STATE_B = 2102           # Actual state on cp conductor (connector B)
+REG_PREV_CP_STATE_B = 2103      # Last CP state (connector B)
+REG_WALLBOX_EV_STATE_B = 2104   # Actual EV state (connector B)
+REG_PREV_EV_STATE_B = 2105      # Previous EV state (connector B)
+REG_CLOUD_CURRENT_LIMIT_B = 2106 # Current limit set by external devices (connector B)
+REG_CURRENT_LIMIT_B = 2107      # Actual set current (connector B)
+REG_PP_CURRENT_LIMIT_B = 2108   # Current limit by PP resistor (connector B)
+REG_CONTACTOR_STATE_B = 2109    # Main contactor state (connector B)
+REG_CP_PWM_STATE_B = 2110        # Actual PWM value (connector B)
+REG_CP_HIGH_B = 2111            # Voltage of possitive PWM pulse (connector B)
+REG_CP_LOW_B = 2112             # Voltage of negative PWM pulse (connector B)
+REG_LOCK_STATE_B = 2113         # Lock state (connector B)
+REG_LOCK_SENSOR_B = 2114        # End sensor (connector B)
+REG_PP_RESISTOR_B = 2115         # PP resistor value (connector B)
+REG_LED_STATE_B = 2116           # Led state (connector B)
+REG_ADC_CP_B = 2117             # Value of CP in AD converter (connector B)
+REG_ADC_PP_B = 2118             # Value of PP in AD converter (connector B)
+REG_LOCK_RELEASE_B = 2119        # Emergency release of lock (connector B)
+REG_EXTERNAL_CURRENT_CONTROL_B = 2120 # External current control (connector B)
 
 # Wattmeter registers (second connector)
-REG_POWER_L1_2 = 4110          # Power of phase 1 in W truePOWER/RealPOWER (connector 2)
-REG_POWER_L2_2 = 4111          # Power of phase 2 in W truePOWER/RealPOWER (connector 2)
-REG_POWER_L3_2 = 4112          # Power of phase 3 in W truePOWER/RealPOWER (connector 2)
-REG_POWER_SUM_2 = 4113         # Power of all phases (1+2+3) in W truePOWER/RealPOWER (connector 2)
+REG_POWER_L1_B = 4110           # Power of phase 1 in W truePOWER/RealPOWER (connector B)
+REG_POWER_L2_B = 4111           # Power of phase 2 in W truePOWER/RealPOWER (connector B)
+REG_POWER_L3_B = 4112           # Power of phase 3 in W truePOWER/RealPOWER (connector B)
+REG_POWER_SUM_B = 4113          # Sum of power on L1+L2+L3 (connector B)
 
-REG_CURRENT_L1_2 = 4114        # Current of phase 1 in mA (connector 2)
-REG_CURRENT_L2_2 = 4115        # Current of phase 2 in mA (connector 2)
-REG_CURRENT_L3_2 = 4116        # Current of phase 3 in mA (connector 2)
+REG_CURRENT_L1_B = 4114         # Current of phase 1 in mA (connector B)
+REG_CURRENT_L2_B = 4115         # Current of phase 2 in mA (connector B)
+REG_CURRENT_L3_B = 4116         # Current of phase 3 in mA (connector B)
 
-REG_VOLTAGE_L1_2 = 4117        # RMS voltage of phase 1 in 0.1V (connector 2)
-REG_VOLTAGE_L2_2 = 4118        # RMS voltage of phase 2 in 0.1V (connector 2)
-REG_VOLTAGE_L3_2 = 4119        # RMS voltage of phase 3 in 0.1V (connector 2)
+REG_VOLTAGE_L1_B = 4117         # RMS voltage of phase 1 in 0.1V (connector B)
+REG_VOLTAGE_L2_B = 4118         # RMS voltage of phase 2 in 0.1V (connector B)
+REG_VOLTAGE_L3_B = 4119         # RMS voltage of phase 3 in 0.1V (connector B)
 
-REG_ENERGY_L1_2 = 4100         # Energy phase 1 in mWh (x0,001 Wh) (connector 2)
-REG_ENERGY_L2_2 = 4102         # Energy phase 2 in mWh (x0,001 Wh) (connector 2)
-REG_ENERGY_L3_2 = 4104         # Energy phase 3 in mWh (x0,001 Wh) (connector 2)
-REG_ENERGY_SUM_2 = 4106        # Total station energy in mWh (x1 Wh) (connector 2)
-REG_ENERGY_FLASH_2 = 4108      # Energy in Wh, saved to flash every 24 hours (connector 2)
+REG_ENERGY_L1_B = 4100          # Energy phase 1 in mWh (x0,001 Wh) (connector B)
+REG_ENERGY_L2_B = 4102          # Energy phase 2 in mWh (x0,001 Wh) (connector B)
+REG_ENERGY_L3_B = 4104          # Energy phase 3 in mWh (x0,001 Wh) (connector B)
+REG_ENERGY_SUM_B = 4106         # Total station energy in mWh (x1 Wh) (connector B)
+REG_ENERGY_FLASH_B = 4108        # Energy in Wh, saved to flash every 24 hours (connector B)
 
 # Missing registers in our original implementation that we need to map
-REG_CHARGE_CURRENT = 2007      # Using current limit register as charge current
-REG_CHARGE_ENERGY = 4006       # Using total energy as charge energy
-REG_CHARGE_POWER = 4010        # Using phase 1 power as charge power for simplicity
-REG_MAX_STATION_CURRENT = 2008 # Using PP current limit as max station current
-REG_CHARGING_ENABLE = 2001     # Using verify user as charging enable
-REG_AUTOMATIC = 2001           # Not directly available, using verify user
+REG_CHARGE_CURRENT_A = 2007     # Using current limit register as charge current (connector A)
+REG_CHARGE_ENERGY_A = 4006      # Using total energy as charge energy (connector A)
+REG_CHARGE_POWER_A = 4010        # Using phase 1 power as charge power for simplicity (connector A)
+REG_MAX_STATION_CURRENT_A = 2008 # Using PP current limit as max station current (connector A)
+REG_CHARGING_ENABLE_A = 2001      # Using verify user as charging enable (connector A)
+REG_AUTOMATIC_A = 2001           # Not directly available, using verify user (connector A)
 
 # Second connector equivalent mappings
-REG_CHARGE_CURRENT_2 = 2107    # Using current limit register as charge current (connector 2)
-REG_CHARGE_ENERGY_2 = 4106     # Using total energy as charge energy (connector 2)
-REG_CHARGE_POWER_2 = 4110      # Using phase 1 power as charge power for simplicity (connector 2)
-REG_MAX_STATION_CURRENT_2 = 2108 # Using PP current limit as max station current (connector 2)
-REG_CHARGING_ENABLE_2 = 2101   # Using verify user as charging enable (connector 2)
-REG_AUTOMATIC_2 = 2101         # Not directly available, using verify user (connector 2)
+REG_CHARGE_CURRENT_B = 2107     # Using current limit register as charge current (connector B)
+REG_CHARGE_ENERGY_B = 4106        # Using total energy as charge energy (connector B)
+REG_CHARGE_POWER_B = 4110          # Using phase 1 power as charge power for simplicity (connector B)
+REG_MAX_STATION_CURRENT_B = 2108   # Using PP current limit as max station current (connector B)
+REG_CHARGING_ENABLE_B = 2101        # Using verify user as charging enable (connector B)
+REG_AUTOMATIC_B = 2101             # Not directly available, using verify user (connector B)
 
 # Device information registers
-REG_DEVICE_INFO_START = 6000   # Device information start
-REG_FLASH_STATE = 6000         # 0 - data v RAM; 1 = data ve FLASH
-REG_HW_VERSION = 6001          # Hardware version (hw revision)
-REG_SW_VERSION = 6002          # Software version (sw revision)
-REG_SN_FIRST_PART = 6003       # First 3 numbers of serial number (e.g. "014")
-REG_SN_FIRST_RESERVE = 6004    # Serial number reserve
-REG_SN_LAST_PART = 6005        # Last 3 numbers of serial number (e.g. "014")
-REG_SN_LAST_RESERVE = 6006     # Serial number reserve
-REG_PN_TYPE = 6007             # Type of station, two numbers. First numb.: WB = 1, DB = 2, ST = 3, second number: Base = 1 Smart = 2 (e.g. "32" = ST SMART)
-REG_PN_LEFT = 6008             # Left - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
-REG_PN_RIGHT = 6009            # Right - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
-REG_PN_RESERVE = 6010          # Reserve
-REG_YEAR_MONTH = 6011          # 'YYMM (YY year, MM month, )' e.g. "2107"
-REG_DAY_HOUR = 6012            # DDHH (DD Day, HH hour) e.g. "3015"
-REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
+REG_DEVICE_INFO_START = 6000      # Device information start
+REG_FLASH_STATE = 6000            # 0 - data v RAM; 1 = data ve FLASH
+REG_HW_VERSION = 6001             # Hardware version (hw revision)
+REG_SW_VERSION = 6002             # Software version (sw revision)
+REG_SN_FIRST_PART = 6003          # First 3 numbers of serial number (e.g. "014")
+REG_SN_FIRST_RESERVE = 6004       # Serial number reserve
+REG_SN_LAST_PART = 6005           # Last 3 numbers of serial number (e.g. "014")
+REG_SN_LAST_RESERVE = 6006         # Serial number reserve
+REG_PN_TYPE = 6007                 # Type of station, two numbers. First numb.: WB = 1, DB = 2, ST = 3, second number: Base = 1 Smart = 2 (e.g. "32" = ST SMART)
+REG_PN_LEFT = 6008                 # Left - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RIGHT = 6009                # Right - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RESERVE = 6010               # Reserve
+REG_YEAR_MONTH = 6011               # 'YYMM (YY year, MM month, )' e.g. "2107"
+REG_DAY_HOUR = 6012                   # DDHH (DD Day, HH hour) e.g. "3015"
+REG_NUM_CONNECTORS = 6015            # Connector count (active connectors)
+
+# For backward compatibility (deprecated - will be removed in future versions)
+REG_ERROR = REG_ERROR_A
+REG_VERIFY_USER = REG_VERIFY_USER_A
+REG_CP_STATE = REG_CP_STATE_A
+REG_PREV_CP_STATE = REG_PREV_CP_STATE_A
+REG_WALLBOX_EV_STATE = REG_WALLBOX_EV_STATE_A
+REG_PREV_EV_STATE = REG_PREV_EV_STATE_A
+REG_CLOUD_CURRENT_LIMIT = REG_CLOUD_CURRENT_LIMIT_A
+REG_CURRENT_LIMIT = REG_CURRENT_LIMIT_A
+REG_PP_CURRENT_LIMIT = REG_PP_CURRENT_LIMIT_A
+REG_CONTACTOR_STATE = REG_CONTACTOR_STATE_A
+REG_CP_PWM_STATE = REG_CP_PWM_STATE_A
+REG_CP_HIGH = REG_CP_HIGH_A
+REG_CP_LOW = REG_CP_LOW_A
+REG_LOCK_STATE = REG_LOCK_STATE_A
+REG_LOCK_SENSOR = REG_LOCK_SENSOR_A
+REG_PP_RESISTOR = REG_PP_RESISTOR_A
+REG_LED_STATE = REG_LED_STATE_A
+REG_ADC_CP = REG_ADC_CP_A
+REG_ADC_PP = REG_ADC_PP_A
+REG_LOCK_RELEASE = REG_LOCK_RELEASE_A
+REG_EXTERNAL_CURRENT_CONTROL = REG_EXTERNAL_CURRENT_CONTROL_A
+REG_POWER_L1 = REG_POWER_L1_A
+REG_POWER_L2 = REG_POWER_L2_A
+REG_POWER_L3 = REG_POWER_L3_A
+REG_POWER_SUM = REG_POWER_SUM_A
+REG_CURRENT_L1 = REG_CURRENT_L1_A
+REG_CURRENT_L2 = REG_CURRENT_L2_A
+REG_CURRENT_L3 = REG_CURRENT_L3_A
+REG_VOLTAGE_L1 = REG_VOLTAGE_L1_A
+REG_VOLTAGE_L2 = REG_VOLTAGE_L2_A
+REG_VOLTAGE_L3 = REG_VOLTAGE_L3_A
+REG_ENERGY_L1 = REG_ENERGY_L1_A
+REG_ENERGY_L2 = REG_ENERGY_L2_A
+REG_ENERGY_L3 = REG_ENERGY_L3_A
+REG_ENERGY_SUM = REG_ENERGY_SUM_A
+REG_ENERGY_FLASH = REG_ENERGY_FLASH_A
+REG_CHARGE_CURRENT = REG_CHARGE_CURRENT_A
+REG_CHARGE_ENERGY = REG_CHARGE_ENERGY_A
+REG_CHARGE_POWER = REG_CHARGE_POWER_A
+REG_MAX_STATION_CURRENT = REG_MAX_STATION_CURRENT_A
+REG_CHARGING_ENABLE = REG_CHARGING_ENABLE_A
+REG_AUTOMATIC = REG_AUTOMATIC_A
+
+REG_ERROR_2 = REG_ERROR_B
+REG_VERIFY_USER_2 = REG_VERIFY_USER_B
+REG_CP_STATE_2 = REG_CP_STATE_B
+REG_PREV_CP_STATE_2 = REG_PREV_CP_STATE_B
+REG_WALLBOX_EV_STATE_2 = REG_WALLBOX_EV_STATE_B
+REG_PREV_EV_STATE_2 = REG_PREV_EV_STATE_B
+REG_CLOUD_CURRENT_LIMIT_2 = REG_CLOUD_CURRENT_LIMIT_B
+REG_CURRENT_LIMIT_2 = REG_CURRENT_LIMIT_B
+REG_PP_CURRENT_LIMIT_2 = REG_PP_CURRENT_LIMIT_B
+REG_CONTACTOR_STATE_2 = REG_CONTACTOR_STATE_B
+REG_CP_PWM_STATE_2 = REG_CP_PWM_STATE_B
+REG_CP_HIGH_2 = REG_CP_HIGH_B
+REG_CP_LOW_2 = REG_CP_LOW_B
+REG_LOCK_STATE_2 = REG_LOCK_STATE_B
+REG_LOCK_SENSOR_2 = REG_LOCK_SENSOR_B
+REG_PP_RESISTOR_2 = REG_PP_RESISTOR_B
+REG_LED_STATE_2 = REG_LED_STATE_B
+REG_ADC_CP_2 = REG_ADC_CP_B
+REG_ADC_PP_2 = REG_ADC_PP_B
+REG_LOCK_RELEASE_2 = REG_LOCK_RELEASE_B
+REG_EXTERNAL_CURRENT_CONTROL_2 = REG_EXTERNAL_CURRENT_CONTROL_B
+REG_POWER_L1_2 = REG_POWER_L1_B
+REG_POWER_L2_2 = REG_POWER_L2_B
+REG_POWER_L3_2 = REG_POWER_L3_B
+REG_POWER_SUM_2 = REG_POWER_SUM_B
+REG_CURRENT_L1_2 = REG_CURRENT_L1_B
+REG_CURRENT_L2_2 = REG_CURRENT_L2_B
+REG_CURRENT_L3_2 = REG_CURRENT_L3_B
+REG_VOLTAGE_L1_2 = REG_VOLTAGE_L1_B
+REG_VOLTAGE_L2_2 = REG_VOLTAGE_L2_B
+REG_VOLTAGE_L3_2 = REG_VOLTAGE_L3_B
+REG_ENERGY_L1_2 = REG_ENERGY_L1_B
+REG_ENERGY_L2_2 = REG_ENERGY_L2_B
+REG_ENERGY_L3_2 = REG_ENERGY_L3_B
+REG_ENERGY_SUM_2 = REG_ENERGY_SUM_B
+REG_ENERGY_FLASH_2 = REG_ENERGY_FLASH_B
+REG_CHARGE_CURRENT_2 = REG_CHARGE_CURRENT_B
+REG_CHARGE_ENERGY_2 = REG_CHARGE_ENERGY_B
+REG_CHARGE_POWER_2 = REG_CHARGE_POWER_B
+REG_MAX_STATION_CURRENT_2 = REG_MAX_STATION_CURRENT_B
+REG_CHARGING_ENABLE_2 = REG_CHARGING_ENABLE_B
+REG_AUTOMATIC_2 = REG_AUTOMATIC_B
 
 # CP State values
 
