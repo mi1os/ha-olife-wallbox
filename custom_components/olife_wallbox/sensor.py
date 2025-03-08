@@ -48,6 +48,8 @@ from .const import (
     DEFAULT_ENABLE_MONTHLY_ENERGY,
     CONF_ENABLE_YEARLY_ENERGY,
     DEFAULT_ENABLE_YEARLY_ENERGY,
+    CONF_READ_ONLY,
+    DEFAULT_READ_ONLY,
     REG_WALLBOX_EV_STATE_A,
     REG_WALLBOX_EV_STATE_B,
     REG_CURRENT_LIMIT_A,
@@ -97,12 +99,17 @@ from .const import (
     REG_ENERGY_L3_B,
     REG_ENERGY_FLASH_A,
     REG_ENERGY_FLASH_B,
+    REG_EXTERNAL_WATTMETER,
     WALLBOX_EV_STATES,
     WALLBOX_EV_STATE_DESCRIPTIONS,
     WALLBOX_EV_STATE_ICONS,
     CP_STATES,
     CP_STATE_DESCRIPTIONS,
     CP_STATE_ICONS,
+    EVENT_EV_PLUGGED_IN,
+    EVENT_EV_PLUGGED_OUT,
+    EVENT_CHARGING_STARTED,
+    EVENT_CHARGING_STOPPED,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -203,6 +210,15 @@ async def async_setup_entry(
             
             # Create a data object to store all fetched values
             data = {}
+            
+            # Check if the external wattmeter is present
+            external_wattmeter = await client.read_holding_registers(REG_EXTERNAL_WATTMETER, 1)
+            if external_wattmeter is not None:
+                data["external_wattmeter_present"] = (external_wattmeter[0] == 1)
+                _LOGGER.debug("External wattmeter present: %s", data["external_wattmeter_present"])
+            else:
+                data["external_wattmeter_present"] = False
+                _LOGGER.debug("Could not read external wattmeter status, assuming not present")
             
             # Get the number of connectors and determine which ones to use
             connectors_in_use = device_info.get("connectors_in_use", ["B"])
@@ -578,6 +594,12 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         if not self.coordinator.last_update_success:
             return False
             
+        # Special handling for phase sensors - they require external wattmeter
+        if isinstance(self, (OlifeWallboxPhasePowerSensor, OlifeWallboxPhaseCurrentSensor, 
+                            OlifeWallboxPhaseVoltageSensor, OlifeWallboxPhaseEnergySensor)):
+            if not self.coordinator.data.get("external_wattmeter_present", False):
+                return False
+        
         # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
         if '.' in self._key:
             parts = self._key.split('.')

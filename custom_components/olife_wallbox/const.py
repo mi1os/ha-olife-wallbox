@@ -155,6 +155,9 @@ REG_YEAR_MONTH = 6011          # 'YYMM (YY year, MM month, )' e.g. "2107"
 REG_DAY_HOUR = 6012            # DDHH (DD Day, HH hour) e.g. "3015"
 REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
 
+# Wattmeter detection
+REG_EXTERNAL_WATTMETER = 6013  # 0 - disconnected, 1 - connected
+
 # EV State mapping
 WALLBOX_EV_STATES = {
     1: "EV Unplugged",
