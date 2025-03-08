@@ -1,19 +1,19 @@
-"""Services for Olife Wallbox integration."""
-
+"""Services for Olife Energy Wallbox integration."""
 import logging
-import voluptuous as vol
-from datetime import datetime
+import re
+from typing import Any, Dict, List, Optional, Set
 
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+import voluptuous as vol
+
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE_ID
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
     DOMAIN,
-    CONF_HOST,
-    CONF_PORT,
-    CONF_SLAVE_ID,
     REG_CHARGING_ENABLE_A,
     REG_CHARGING_ENABLE_B,
     REG_CURRENT_LIMIT_A,
