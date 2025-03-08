@@ -95,14 +95,16 @@ async def async_get_config_entry_diagnostics(
                 "data": coordinator.data if coordinator.data else {},
             }
             
-        # Check all entities for error counts
+        # Simplified entity statistics - avoid direct entity object access
         data["statistics"]["entity_errors"] = {}
         for entity_entry in data["entities"]:
             entity_id = entity_entry["id"]
             entity = hass.states.get(entity_id)
-            if entity and entity.domain in ["switch", "number", "sensor", "select"]:
-                entity_obj = hass.data.get("entity_components", {}).get(entity.domain, {}).get(entity_id)
-                if entity_obj and hasattr(entity_obj, "_error_count"):
-                    data["statistics"]["entity_errors"][entity_id] = entity_obj._error_count
+            if entity:
+                # Include basic state information instead
+                data["statistics"]["entity_errors"][entity_id] = {
+                    "state": entity.state,
+                    "available": entity.state not in ["unavailable", "unknown"],
+                }
     
     return data 
