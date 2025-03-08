@@ -56,6 +56,8 @@ from .const import (
     REG_ENERGY_L2,
     REG_ENERGY_L3,
     REG_ENERGY_SUM,
+    REG_POWER_SUM,
+    REG_ENERGY_FLASH,
     # State mappings
     WALLBOX_EV_STATES,
     WALLBOX_EV_STATE_ICONS,
@@ -72,6 +74,20 @@ from .const import (
     DEFAULT_ENABLE_DAILY_ENERGY,
     DEFAULT_ENABLE_MONTHLY_ENERGY,
     DEFAULT_ENABLE_YEARLY_ENERGY,
+    # Connector 2 registers
+    REG_WALLBOX_EV_STATE_2,
+    REG_ERROR_2,
+    REG_CP_STATE_2,
+    REG_PREV_CP_STATE_2,
+    REG_POWER_L1_2,
+    REG_CURRENT_L1_2,
+    REG_VOLTAGE_L1_2,
+    REG_ENERGY_L1_2,
+    REG_ENERGY_L2_2,
+    REG_ENERGY_L3_2,
+    REG_ENERGY_SUM_2,
+    REG_POWER_SUM_2,
+    REG_ENERGY_FLASH_2,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -248,6 +264,9 @@ async def async_setup_entry(
                 # Read phase power measurements
                 power_phases = await client.read_holding_registers(REG_POWER_L1, 3)
                 
+                # Read total power (sum of all phases)
+                power_sum = await client.read_holding_registers(REG_POWER_SUM, 1)
+                
                 # Read phase current measurements
                 current_phases = await client.read_holding_registers(REG_CURRENT_L1, 3)
                 
@@ -259,6 +278,10 @@ async def async_setup_entry(
                 energy_l1 = await client.read_holding_registers(REG_ENERGY_L1, 2)
                 energy_l2 = await client.read_holding_registers(REG_ENERGY_L2, 2)
                 energy_l3 = await client.read_holding_registers(REG_ENERGY_L3, 2)
+                
+                # Read energy flash (saved to flash every 24 hours)
+                energy_flash = await client.read_holding_registers(REG_ENERGY_FLASH, 2)
+                
                 if energy_l1 is not None and len(energy_l1) >= 2:
                     energy_phases.append(energy_l1[0] + (energy_l1[1] << 16))
                 else:
@@ -274,25 +297,26 @@ async def async_setup_entry(
                 else:
                     energy_phases.append(None)
                 
-                # Add phase power measurements
+                # Add phase measurements to data
                 if power_phases is not None and len(power_phases) >= 3:
                     data["connector_1"]["power_l1"] = power_phases[0]
                     data["connector_1"]["power_l2"] = power_phases[1]
                     data["connector_1"]["power_l3"] = power_phases[2]
                 
-                # Add phase current measurements
+                # Add total power
+                if power_sum is not None:
+                    data["connector_1"]["power_sum"] = power_sum[0]
+                
                 if current_phases is not None and len(current_phases) >= 3:
                     data["connector_1"]["current_l1"] = current_phases[0]
                     data["connector_1"]["current_l2"] = current_phases[1]
                     data["connector_1"]["current_l3"] = current_phases[2]
                 
-                # Add phase voltage measurements
                 if voltage_phases is not None and len(voltage_phases) >= 3:
                     data["connector_1"]["voltage_l1"] = voltage_phases[0]
                     data["connector_1"]["voltage_l2"] = voltage_phases[1]
                     data["connector_1"]["voltage_l3"] = voltage_phases[2]
                 
-                # Add phase energy measurements
                 if energy_phases is not None and len(energy_phases) >= 3:
                     if energy_phases[0] is not None:
                         data["connector_1"]["energy_l1"] = energy_phases[0]
@@ -300,6 +324,10 @@ async def async_setup_entry(
                         data["connector_1"]["energy_l2"] = energy_phases[1]
                     if energy_phases[2] is not None:
                         data["connector_1"]["energy_l3"] = energy_phases[2]
+                
+                # Add energy flash
+                if energy_flash is not None and len(energy_flash) >= 2:
+                    data["connector_1"]["energy_flash"] = energy_flash[0] + (energy_flash[1] << 16)
             
             # If we have two connectors, read data for the second connector
             if num_connectors > 1:
@@ -356,6 +384,10 @@ async def async_setup_entry(
                 # Only read phase measurements if enabled
                 if enable_phase_sensors:
                     power_phases_2 = await client.read_holding_registers(REG_POWER_L1_2, 3)
+                    
+                    # Read total power (sum of all phases) for connector 2
+                    power_sum_2 = await client.read_holding_registers(REG_POWER_SUM_2, 1)
+                    
                     current_phases_2 = await client.read_holding_registers(REG_CURRENT_L1_2, 3)
                     voltage_phases_2 = await client.read_holding_registers(REG_VOLTAGE_L1_2, 3)
                     
@@ -363,6 +395,9 @@ async def async_setup_entry(
                     energy_l1_2 = await client.read_holding_registers(REG_ENERGY_L1_2, 2)
                     energy_l2_2 = await client.read_holding_registers(REG_ENERGY_L2_2, 2)
                     energy_l3_2 = await client.read_holding_registers(REG_ENERGY_L3_2, 2)
+                    
+                    # Read energy flash for connector 2
+                    energy_flash_2 = await client.read_holding_registers(REG_ENERGY_FLASH_2, 2)
                     
                     if energy_l1_2 is not None and len(energy_l1_2) >= 2:
                         energy_phases_2.append(energy_l1_2[0] + (energy_l1_2[1] << 16))
@@ -385,6 +420,10 @@ async def async_setup_entry(
                         data["connector_2"]["power_l2"] = power_phases_2[1]
                         data["connector_2"]["power_l3"] = power_phases_2[2]
                     
+                    # Add total power for connector 2
+                    if power_sum_2 is not None:
+                        data["connector_2"]["power_sum"] = power_sum_2[0]
+                    
                     if current_phases_2 is not None and len(current_phases_2) >= 3:
                         data["connector_2"]["current_l1"] = current_phases_2[0]
                         data["connector_2"]["current_l2"] = current_phases_2[1]
@@ -402,6 +441,10 @@ async def async_setup_entry(
                             data["connector_2"]["energy_l2"] = energy_phases_2[1]
                         if energy_phases_2[2] is not None:
                             data["connector_2"]["energy_l3"] = energy_phases_2[2]
+                    
+                    # Add energy flash for connector 2
+                    if energy_flash_2 is not None and len(energy_flash_2) >= 2:
+                        data["connector_2"]["energy_flash"] = energy_flash_2[0] + (energy_flash_2[1] << 16)
                 
                 # Read the summary energy value for connector 2
                 energy_sum_2_extended = await client.read_holding_registers(REG_ENERGY_SUM_2, 2)

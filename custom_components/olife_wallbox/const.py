@@ -58,9 +58,10 @@ REG_EXTERNAL_CURRENT_CONTROL = 2020 # External current control
 
 # Wattmeter registers
 # Individual phase measurements
-REG_POWER_L1 = 4010            # Power of phase 1 in W
-REG_POWER_L2 = 4011            # Power of phase 2 in W
-REG_POWER_L3 = 4012            # Power of phase 3 in W
+REG_POWER_L1 = 4010            # Power of phase 1 in W truePOWER/RealPOWER
+REG_POWER_L2 = 4011            # Power of phase 2 in W truePOWER/RealPOWER
+REG_POWER_L3 = 4012            # Power of phase 3 in W truePOWER/RealPOWER
+REG_POWER_SUM = 4013           # Power of all phases (1+2+3) in W truePOWER/RealPOWER
 
 REG_CURRENT_L1 = 4014          # Current of phase 1 in mA
 REG_CURRENT_L2 = 4015          # Current of phase 2 in mA  
@@ -71,10 +72,11 @@ REG_VOLTAGE_L2 = 4018          # RMS voltage of phase 2 in 0.1V
 REG_VOLTAGE_L3 = 4019          # RMS voltage of phase 3 in 0.1V
 
 # Energy measurements
-REG_ENERGY_L1 = 4000           # Energy phase 1 in mWh
-REG_ENERGY_L2 = 4002           # Energy phase 2 in mWh
-REG_ENERGY_L3 = 4004           # Energy phase 3 in mWh
-REG_ENERGY_SUM = 4006          # Total energy in Wh
+REG_ENERGY_L1 = 4000           # Energy phase 1 in mWh (x0,001 Wh)
+REG_ENERGY_L2 = 4002           # Energy phase 2 in mWh (x0,001 Wh)
+REG_ENERGY_L3 = 4004           # Energy phase 3 in mWh (x0,001 Wh)
+REG_ENERGY_SUM = 4006          # Total station energy in mWh (x1 Wh)
+REG_ENERGY_FLASH = 4008        # Energy in Wh, saved to flash every 24 hours
 
 # Connector 2 Registers (if present, 2100-2126, 4100-4119)
 # EVSE-A registers (second connector)
@@ -101,9 +103,10 @@ REG_LOCK_RELEASE_2 = 2119      # Emergency release of lock (connector 2)
 REG_EXTERNAL_CURRENT_CONTROL_2 = 2120 # External current control (connector 2)
 
 # Wattmeter registers (second connector)
-REG_POWER_L1_2 = 4110          # Power of phase 1 in W (connector 2)
-REG_POWER_L2_2 = 4111          # Power of phase 2 in W (connector 2)
-REG_POWER_L3_2 = 4112          # Power of phase 3 in W (connector 2)
+REG_POWER_L1_2 = 4110          # Power of phase 1 in W truePOWER/RealPOWER (connector 2)
+REG_POWER_L2_2 = 4111          # Power of phase 2 in W truePOWER/RealPOWER (connector 2)
+REG_POWER_L3_2 = 4112          # Power of phase 3 in W truePOWER/RealPOWER (connector 2)
+REG_POWER_SUM_2 = 4113         # Power of all phases (1+2+3) in W truePOWER/RealPOWER (connector 2)
 
 REG_CURRENT_L1_2 = 4114        # Current of phase 1 in mA (connector 2)
 REG_CURRENT_L2_2 = 4115        # Current of phase 2 in mA (connector 2)
@@ -113,10 +116,11 @@ REG_VOLTAGE_L1_2 = 4117        # RMS voltage of phase 1 in 0.1V (connector 2)
 REG_VOLTAGE_L2_2 = 4118        # RMS voltage of phase 2 in 0.1V (connector 2)
 REG_VOLTAGE_L3_2 = 4119        # RMS voltage of phase 3 in 0.1V (connector 2)
 
-REG_ENERGY_L1_2 = 4100         # Energy phase 1 in mWh (connector 2)
-REG_ENERGY_L2_2 = 4102         # Energy phase 2 in mWh (connector 2)
-REG_ENERGY_L3_2 = 4104         # Energy phase 3 in mWh (connector 2)
-REG_ENERGY_SUM_2 = 4106        # Total energy in Wh (connector 2)
+REG_ENERGY_L1_2 = 4100         # Energy phase 1 in mWh (x0,001 Wh) (connector 2)
+REG_ENERGY_L2_2 = 4102         # Energy phase 2 in mWh (x0,001 Wh) (connector 2)
+REG_ENERGY_L3_2 = 4104         # Energy phase 3 in mWh (x0,001 Wh) (connector 2)
+REG_ENERGY_SUM_2 = 4106        # Total station energy in mWh (x1 Wh) (connector 2)
+REG_ENERGY_FLASH_2 = 4108      # Energy in Wh, saved to flash every 24 hours (connector 2)
 
 # Missing registers in our original implementation that we need to map
 REG_CHARGE_CURRENT = 2007      # Using current limit register as charge current
