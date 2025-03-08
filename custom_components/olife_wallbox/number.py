@@ -416,6 +416,9 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
+        # Start as unavailable until we can verify register exists
+        self._available = False
+        self._register_available = False
         
     @property
     def name(self):
@@ -430,6 +433,8 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
     @property
     def native_value(self):
         """Return the value reported by the number entity."""
+        if not self._register_available:
+            return None
         return self._value
         
     @property
@@ -446,12 +451,17 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
     def native_step(self):
         """Return the step value."""
         return 1
+    
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
         
     async def async_set_native_value(self, value):
         """Set the value of the entity."""
-        if not self._available:
-            _LOGGER.warning("Cannot set RS485 ID: Device unavailable")
-            raise HomeAssistantError("Cannot set RS485 ID: Device unavailable")
+        if not self._available or not self._register_available:
+            _LOGGER.warning("Cannot set RS485 ID: Device unavailable or register not supported")
+            raise HomeAssistantError("Cannot set RS485 ID: Device unavailable or register not supported")
             
         try:
             _LOGGER.debug("Setting RS485 ID to: %s (type: %s)", value, type(value))
@@ -495,6 +505,7 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
             result = await self._client.read_holding_registers(REG_RS485_ID, 1)
             if result is not None:
                 self._available = True
+                self._register_available = True
                 self._value = result[0]
                 self._error_count = 0
             else:
@@ -507,12 +518,21 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            if self._should_log_error():
-                _LOGGER.error(
-                    "Error updating RS485 ID: %s (error count: %s)",
-                    ex, self._error_count
-                )
-            self._available = False
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "RS485 ID register (5023) not supported by this device: %s", ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating RS485 ID: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False
 
 class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     """Number entity for Wattmeter Mode setting."""
@@ -520,6 +540,9 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
+        # Start as unavailable until we can verify register exists
+        self._available = False
+        self._register_available = False
         
     @property
     def name(self):
@@ -534,6 +557,8 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     @property
     def native_value(self):
         """Return the value reported by the number entity."""
+        if not self._register_available:
+            return None
         return self._value
         
     @property
@@ -550,6 +575,11 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     def native_step(self):
         """Return the step value."""
         return 1
+    
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
         
     @property
     def extra_state_attributes(self):
@@ -563,9 +593,9 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
         
     async def async_set_native_value(self, value):
         """Set the value of the entity."""
-        if not self._available:
-            _LOGGER.warning("Cannot set Wattmeter Mode: Device unavailable")
-            raise HomeAssistantError("Cannot set Wattmeter Mode: Device unavailable")
+        if not self._available or not self._register_available:
+            _LOGGER.warning("Cannot set Wattmeter Mode: Device unavailable or register not supported")
+            raise HomeAssistantError("Cannot set Wattmeter Mode: Device unavailable or register not supported")
             
         try:
             _LOGGER.debug("Setting Wattmeter Mode to: %s (type: %s)", value, type(value))
@@ -609,6 +639,7 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
             result = await self._client.read_holding_registers(REG_WATTMETER_MODE, 1)
             if result is not None:
                 self._available = True
+                self._register_available = True
                 self._value = result[0]
                 self._error_count = 0
             else:
@@ -621,9 +652,18 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            if self._should_log_error():
-                _LOGGER.error(
-                    "Error updating Wattmeter Mode: %s (error count: %s)",
-                    ex, self._error_count
-                )
-            self._available = False 
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "Wattmeter Mode register (5024) not supported by this device: %s", ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating Wattmeter Mode: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False 

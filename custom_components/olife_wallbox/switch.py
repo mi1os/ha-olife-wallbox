@@ -306,14 +306,20 @@ class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
         return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
 
 class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+    """Switch to control automatic mode on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:check-decagram"
         self._register = REG_AUTOMATIC
-
+        self._register_available = False
+        
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available and self._register_available
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -325,21 +331,67 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
         return f"{self._device_unique_id}_automatic_global_switch"
         
     @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
+        
+    @property
     def icon(self):
         """Return the icon to use in the frontend based on the switch state."""
         if not self._available:
             return "mdi:lightning-bolt-off"
         return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+        
+    async def async_update(self):
+        """Update the state of the switch."""
+        try:
+            result = await self._client.read_holding_registers(self._register, 1)
+            if result is not None:
+                self._available = True
+                self._register_available = True
+                self._is_on = bool(result[0])
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read switch state from register %s (error count: %s)",
+                        self._register, self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "Register %s not supported by this device: %s", self._register, ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating switch state: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False
 
 class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+    """Switch to control automatic mode dipswitch."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:check-decagram"
+        self._attr_icon = "mdi:dip-switch"
         self._register = REG_AUTOMATIC_DIPSWITCH_ON
-
+        self._register_available = False
+        
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available and self._register_available
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -351,21 +403,67 @@ class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
         return f"{self._device_unique_id}_automatic_dipswitch_switch"
         
     @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
+        
+    @property
     def icon(self):
         """Return the icon to use in the frontend based on the switch state."""
         if not self._available:
-            return "mdi:lightning-bolt-off"
-        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+            return "mdi:dip-switch"
+        return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
+        
+    async def async_update(self):
+        """Update the state of the switch."""
+        try:
+            result = await self._client.read_holding_registers(self._register, 1)
+            if result is not None:
+                self._available = True
+                self._register_available = True
+                self._is_on = bool(result[0])
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read switch state from register %s (error count: %s)",
+                        self._register, self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "Register %s not supported by this device: %s", self._register, ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating switch state: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False
 
 class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+    """Switch to control max current dipswitch."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:check-decagram"
+        self._attr_icon = "mdi:current-ac"
         self._register = REG_MAX_CURRENT_DIPSWITCH_ON
-
+        self._register_available = False
+        
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available and self._register_available
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -377,21 +475,67 @@ class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
         return f"{self._device_unique_id}_max_current_dipswitch_switch"
         
     @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
+        
+    @property
     def icon(self):
         """Return the icon to use in the frontend based on the switch state."""
         if not self._available:
-            return "mdi:lightning-bolt-off"
-        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+            return "mdi:current-ac"
+        return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
+        
+    async def async_update(self):
+        """Update the state of the switch."""
+        try:
+            result = await self._client.read_holding_registers(self._register, 1)
+            if result is not None:
+                self._available = True
+                self._register_available = True
+                self._is_on = bool(result[0])
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read switch state from register %s (error count: %s)",
+                        self._register, self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "Register %s not supported by this device: %s", self._register, ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating switch state: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False
 
 class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+    """Switch to control external current balancing."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:check-decagram"
+        self._attr_icon = "mdi:scale-balance"
         self._register = REG_BALANCING_EXTERNAL_CURRENT
-
+        self._register_available = False
+        
+    @property
+    def available(self):
+        """Return if entity is available."""
+        return self._available and self._register_available
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -403,8 +547,48 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
         return f"{self._device_unique_id}_balancing_external_current_switch"
         
     @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added to the entity registry."""
+        return False  # Disabled by default as this might not be supported on all models
+        
+    @property
     def icon(self):
         """Return the icon to use in the frontend based on the switch state."""
         if not self._available:
-            return "mdi:lightning-bolt-off"
-        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off" 
+            return "mdi:scale-balance"
+        return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
+        
+    async def async_update(self):
+        """Update the state of the switch."""
+        try:
+            result = await self._client.read_holding_registers(self._register, 1)
+            if result is not None:
+                self._available = True
+                self._register_available = True
+                self._is_on = bool(result[0])
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read switch state from register %s (error count: %s)",
+                        self._register, self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            # Check if this is a specific Modbus exception indicating register not available
+            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
+                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
+                    _LOGGER.warning(
+                        "Register %s not supported by this device: %s", self._register, ex
+                    )
+                self._register_available = False
+                self._available = False
+            else:
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Error updating switch state: %s (error count: %s)",
+                        ex, self._error_count
+                    )
+                self._available = False 
