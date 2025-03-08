@@ -155,8 +155,6 @@ REG_YEAR_MONTH = 6011          # 'YYMM (YY year, MM month, )' e.g. "2107"
 REG_DAY_HOUR = 6012            # DDHH (DD Day, HH hour) e.g. "3015"
 REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
 
-# CP State values
-
 # EV State mapping
 WALLBOX_EV_STATES = {
     1: "EV Unplugged",
@@ -167,21 +165,25 @@ WALLBOX_EV_STATES = {
     6: "Current Below 6A",
     7: "Cloud Stopped",
     8: "Tester Charging",
-    10: "Unknown State",
+    9: "RCD DC Sensor Fault",
+    10: "EVSE Error",
+    13: "No Second Connector",
     90: "Error"
 }
 
 # Detailed EV state descriptions for attributes
 WALLBOX_EV_STATE_DESCRIPTIONS = {
     1: "EV unplugged",
-    2: "EV connected (CP state from 12V to 9V)",
-    3: "EV verified (CP state from 9V to 9V with PWM)",
+    2: "EV connected (Change CP state from unplug 12V to connected 9V)",
+    3: "EV verified (Change CP state from 9V to 9V with PWM)",
     4: "EV charging, main contactor is ON (CP state in 6V PWM)",
-    5: "EV charging interrupted (100% SoC or key) (CP state from 6V PWM to 9V PWM)",
-    6: "Charging stopped by current regulator (Current under 6A) (CP state from 6V PWM to 9V)",
-    7: "Charging stopped by cloud (CP state from 6V PWM to 9V)",
+    5: "EV interrupted charging (100% SoC, interrupt by key) (change CP state from 6V PWM to 9V PWM)",
+    6: "Charging stopped by external current regulator/cloud (Current is set under 6A) (change CP state from 6V PWM to 9V)",
+    7: "Charging stopped by external regulator/cloud (change CP state from 6V PWM to 9V)",
     8: "Charging by tester",
-    10: "Unknown EV state (code 10)",
+    9: "Error RCD DC sensor fault. 6mA DC leakage detected, need to check and restart for clear error",
+    10: "Error EVSE error see CP state",
+    13: "EVSE has not second connector it is probab",
     90: "EV error"
 }
 
@@ -204,19 +206,19 @@ CP_STATES = {
 
 # CP State detailed descriptions
 CP_STATE_DESCRIPTIONS = {
-    1: "Ready: Control Pilot signal at +12V, waiting for EV",
-    2: "EV Connected: EV detected, CP signal at +9V",
-    3: "Preparing: PWM signal established at +9V/-12V, authenticating or preparing to charge",
-    4: "EV Requires Charging: PWM signal at +6V/-12V, EV is ready to accept power",
-    5: "Special Test State: Fixed +6V signal, used for special testing modes",
-    6: "Error: Ventilation Required - The charging area requires ventilation",
-    7: "Error: -12V Missing - Problem with Control Pilot negative voltage",
-    8: "Error: CP Voltage Too Low - Control Pilot signal voltage below acceptable range",
-    9: "Error: CP Voltage Too High - Control Pilot signal voltage above acceptable range",
-    10: "Error: CP Shorted - Control Pilot line shorted to ground (0V)",
-    11: "Unknown State - Control Pilot in undefined state",
-    12: "Error: RCD Fault - Residual Current Device detected fault current",
-    13: "Error: Connector Missing - Physical charging connector not detected"
+    1: "STATE_H12 - EVSE ready +12V",
+    2: "STATE_H9 - EV connected +9V",
+    3: "STATE_PWM9 - Preparing (EV connected, user verified, PWM +9V -12V, waiting for car)",
+    4: "STATE_PWM6 - EV require charging, PWM +6V -12V",
+    5: "STATE_H6 - Tester special state",
+    6: "STATE_E_3 - Error EV require ventilation",
+    7: "STATE_E_L12 - Error -12V",
+    8: "STATE_E_MIN - Error out of min limit",
+    9: "STATE_E_MAX - Error out of max limit",
+    10: "STATE_E_0 - Error CP=0V -> CP short circuit",
+    11: "STATE_UNKNOWN - Unknown",
+    12: "STATE_E_RCD_FAULT - Residual current fault",
+    13: "STATE_CONNECTOR_MISS - EVSE has not second connector"
 }
 
 # EV State icons mapping
@@ -229,7 +231,9 @@ WALLBOX_EV_STATE_ICONS = {
     6: "mdi:current-ac",            # Current below 6A
     7: "mdi:account-alert",         # No authentication
     8: "mdi:test-tube",             # Tester charging
-    10: "mdi:help-circle",          # Unknown state
+    9: "mdi:current-dc",            # RCD DC sensor fault
+    10: "mdi:alert-circle",         # EVSE Error
+    13: "mdi:connection",           # No second connector
     90: "mdi:alert-circle"          # Error
 }
 
