@@ -136,11 +136,20 @@ REG_AUTOMATIC_2 = 2101         # Not directly available, using verify user (conn
 
 # Device information registers
 REG_DEVICE_INFO_START = 6000   # Device information start
-REG_HW_VERSION = 6000          # Hardware version
-REG_SW_VERSION = 6001          # Software version
-REG_SERIAL_NUMBER_START = 6002 # Serial number start (10 registers)
-REG_MODEL_START = 6012         # Model start (3 registers)
-REG_NUM_CONNECTORS = 6015      # Number of connectors (1 or 2)
+REG_FLASH_STATE = 6000         # 0 - data v RAM; 1 = data ve FLASH
+REG_HW_VERSION = 6001          # Hardware version (hw revision)
+REG_SW_VERSION = 6002          # Software version (sw revision)
+REG_SN_FIRST_PART = 6003       # First 3 numbers of serial number (e.g. "014")
+REG_SN_FIRST_RESERVE = 6004    # Serial number reserve
+REG_SN_LAST_PART = 6005        # Last 3 numbers of serial number (e.g. "014")
+REG_SN_LAST_RESERVE = 6006     # Serial number reserve
+REG_PN_TYPE = 6007             # Type of station, two numbers. First numb.: WB = 1, DB = 2, ST = 3, second number: Base = 1 Smart = 2 (e.g. "32" = ST SMART)
+REG_PN_LEFT = 6008             # Left - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RIGHT = 6009            # Right - type of output connector, first number is Type - (mennekes = 2, yazaki = 1); second number (1= Socket, 2 = Coil cable, 3 straight cable)
+REG_PN_RESERVE = 6010          # Reserve
+REG_YEAR_MONTH = 6011          # 'YYMM (YY year, MM month, )' e.g. "2107"
+REG_DAY_HOUR = 6012            # DDHH (DD Day, HH hour) e.g. "3015"
+REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
 
 # CP State values
 

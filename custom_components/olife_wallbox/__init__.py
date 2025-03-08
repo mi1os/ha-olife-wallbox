@@ -16,7 +16,14 @@ from .const import (
     REG_SW_VERSION,
     REG_SERIAL_NUMBER_START,
     REG_MODEL_START,
-    REG_NUM_CONNECTORS
+    REG_NUM_CONNECTORS,
+    REG_SN_FIRST_PART,
+    REG_SN_LAST_PART,
+    REG_YEAR_MONTH,
+    REG_DAY_HOUR,
+    REG_PN_TYPE,
+    REG_PN_LEFT,
+    REG_PN_RIGHT
 )
 from .services import async_setup_services, async_unload_services
 from .modbus_client import OlifeWallboxModbusClient
@@ -57,27 +64,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if sw_version:
             device_info["sw_version"] = f"{sw_version[0]/100:.2f}"
             
-        # Serial number (10 registers)
-        serial_chars = []
-        serial_registers = await client.read_holding_registers(REG_SERIAL_NUMBER_START, 10)
-        if serial_registers:
-            for register in serial_registers:
-                if register > 0:
-                    # Convert 16-bit register to two ASCII characters
-                    serial_chars.append(chr((register >> 8) & 0xFF))
-                    serial_chars.append(chr(register & 0xFF))
-            device_info["serial_number"] = ''.join(c for c in serial_chars if c.isprintable())
+        # Serial number (first and last parts)
+        sn_first = await client.read_holding_registers(REG_SN_FIRST_PART, 1)
+        sn_last = await client.read_holding_registers(REG_SN_LAST_PART, 1)
+        if sn_first and sn_last:
+            device_info["serial_number"] = f"{sn_first[0]:03d}-{sn_last[0]:03d}"
             
-        # Model (3 registers)
-        model_chars = []
-        model_registers = await client.read_holding_registers(REG_MODEL_START, 3)
-        if model_registers:
-            for register in model_registers:
-                if register > 0:
-                    # Convert 16-bit register to two ASCII characters
-                    model_chars.append(chr((register >> 8) & 0xFF))
-                    model_chars.append(chr(register & 0xFF))
-            device_info["model"] = ''.join(c for c in model_chars if c.isprintable())
+        # Manufacturing date
+        year_month = await client.read_holding_registers(REG_YEAR_MONTH, 1)
+        day_hour = await client.read_holding_registers(REG_DAY_HOUR, 1)
+        if year_month and day_hour:
+            year = 2000 + ((year_month[0] // 100) % 100)  # Extract YY from YYMM
+            month = year_month[0] % 100                   # Extract MM from YYMM
+            day = day_hour[0] // 100                      # Extract DD from DDHH
+            hour = day_hour[0] % 100                      # Extract HH from DDHH
+            device_info["manufactured"] = f"{year}-{month:02d}-{day:02d} {hour:02d}:00"
+            
+        # Station type
+        pn_type = await client.read_holding_registers(REG_PN_TYPE, 1)
+        if pn_type:
+            station_type = pn_type[0] // 10  # First digit
+            station_variant = pn_type[0] % 10  # Second digit
+            
+            station_types = {1: "WB", 2: "DB", 3: "ST"}
+            station_variants = {1: "Base", 2: "Smart"}
+            
+            station_type_str = station_types.get(station_type, "Unknown")
+            station_variant_str = station_variants.get(station_variant, "Unknown")
+            
+            device_info["model"] = f"{station_type_str} {station_variant_str}"
+            
+        # Connector information
+        pn_left = await client.read_holding_registers(REG_PN_LEFT, 1)
+        pn_right = await client.read_holding_registers(REG_PN_RIGHT, 1)
+        
+        connector_types = {1: "Yazaki", 2: "Mennekes"}
+        cable_types = {1: "Socket", 2: "Coil Cable", 3: "Straight Cable"}
+        
+        if pn_left:
+            left_type = pn_left[0] // 10  # First digit
+            left_cable = pn_left[0] % 10  # Second digit
+            left_type_str = connector_types.get(left_type, "Unknown")
+            left_cable_str = cable_types.get(left_cable, "Unknown")
+            device_info["connector_left"] = f"{left_type_str} {left_cable_str}"
+            
+        if pn_right:
+            right_type = pn_right[0] // 10  # First digit
+            right_cable = pn_right[0] % 10  # Second digit
+            right_type_str = connector_types.get(right_type, "Unknown")
+            right_cable_str = cable_types.get(right_cable, "Unknown")
+            device_info["connector_right"] = f"{right_type_str} {right_cable_str}"
             
         # Number of connectors
         num_connectors = await client.read_holding_registers(REG_NUM_CONNECTORS, 1)
