@@ -654,7 +654,24 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self):
         """Return if entity is available."""
-        return self.coordinator.last_update_success and self._key in self.coordinator.data
+        if not self.coordinator.last_update_success:
+            return False
+            
+        # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
+        if '.' in self._key:
+            parts = self._key.split('.')
+            data = self.coordinator.data
+            
+            # Traverse the nested dictionary
+            for part in parts:
+                if not isinstance(data, dict) or part not in data:
+                    return False
+                data = data[part]
+                
+            return True
+        else:
+            # Direct key
+            return self._key in self.coordinator.data
 
     @property
     def unique_id(self):
@@ -665,6 +682,30 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
     def device_info(self):
         """Return device information."""
         return self._device_info
+
+    def _get_value_from_data(self, key=None):
+        """Get a value from the data dictionary, handling nested keys."""
+        if key is None:
+            key = self._key
+            
+        if not self.coordinator.data:
+            return None
+            
+        # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
+        if '.' in key:
+            parts = key.split('.')
+            data = self.coordinator.data
+            
+            # Traverse the nested dictionary
+            for part in parts:
+                if not isinstance(data, dict) or part not in data:
+                    return None
+                data = data[part]
+                
+            return data
+        else:
+            # Direct key
+            return self.coordinator.data.get(key)
 
 class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox EV state."""
@@ -690,7 +731,7 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        raw_state = self.coordinator.data.get(self._key)
+        raw_state = self._get_value_from_data()
         if raw_state is None:
             return None
             
@@ -742,7 +783,7 @@ class OlifeWallboxCurrentLimitSensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
     @property
     def native_unit_of_measurement(self):
@@ -765,7 +806,7 @@ class OlifeWallboxMaxStationCurrentSensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
     @property
     def native_unit_of_measurement(self):
@@ -788,7 +829,7 @@ class OlifeWallboxLedPwmSensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
 class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox charge current."""
@@ -801,7 +842,7 @@ class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
     @property
     def native_unit_of_measurement(self):
@@ -829,7 +870,7 @@ class OlifeWallboxChargeEnergySensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
     @property
     def native_unit_of_measurement(self):
@@ -857,7 +898,7 @@ class OlifeWallboxChargePowerSensor(OlifeWallboxSensor):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
 
     @property
     def native_unit_of_measurement(self):
@@ -987,7 +1028,7 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         if not self.available:
             return
             
-        current_energy = self.coordinator.data.get(self._key)
+        current_energy = self._get_value_from_data()
         
         if current_energy is None:
             return
@@ -1133,7 +1174,7 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         if not self.available:
             return
             
-        current_energy = self.coordinator.data.get(self._key)
+        current_energy = self._get_value_from_data()
         
         if current_energy is None:
             return
@@ -1283,7 +1324,7 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         if not self.available:
             return
             
-        current_energy = self.coordinator.data.get(self._key)
+        current_energy = self._get_value_from_data()
         
         if current_energy is None:
             return
@@ -1333,7 +1374,7 @@ class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        raw_state = self.coordinator.data.get(self._key)
+        raw_state = self._get_value_from_data()
         if raw_state is None:
             return None
             
@@ -1392,7 +1433,7 @@ class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        value = self.coordinator.data.get(self._key)
+        value = self._get_value_from_data()
         return value if value is not None else None
             
     @property
@@ -1401,7 +1442,7 @@ class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
         if not self.available:
             return {}
             
-        value = self.coordinator.data.get(self._key)
+        value = self._get_value_from_data()
         if value is None:
             return {}
             
@@ -1433,7 +1474,7 @@ class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
         if not self.available:
             return "mdi:alert-circle-outline"
             
-        value = self.coordinator.data.get(self._key)
+        value = self._get_value_from_data()
         if value is None or value == 0:
             return "mdi:check-circle-outline"
         return "mdi:alert-circle"
@@ -1459,7 +1500,7 @@ class OlifeWallboxPhasePowerSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        return self.coordinator.data.get(self._key)
+        return self._get_value_from_data()
             
     @property
     def native_unit_of_measurement(self):
@@ -1492,7 +1533,7 @@ class OlifeWallboxPhaseCurrentSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        milliamps = self.coordinator.data.get(self._key)
+        milliamps = self._get_value_from_data()
         if milliamps is None:
             return None
             
@@ -1530,7 +1571,7 @@ class OlifeWallboxPhaseVoltageSensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        decivolts = self.coordinator.data.get(self._key)
+        decivolts = self._get_value_from_data()
         if decivolts is None:
             return None
             
@@ -1568,7 +1609,7 @@ class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
         if not self.available:
             return None
             
-        milliwatthours = self.coordinator.data.get(self._key)
+        milliwatthours = self._get_value_from_data()
         if milliwatthours is None:
             return None
             

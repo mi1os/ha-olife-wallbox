@@ -167,6 +167,7 @@ WALLBOX_EV_STATES = {
     6: "Current Below 6A",
     7: "Cloud Stopped",
     8: "Tester Charging",
+    10: "Unknown State",
     90: "Error"
 }
 
@@ -180,6 +181,7 @@ WALLBOX_EV_STATE_DESCRIPTIONS = {
     6: "Charging stopped by current regulator (Current under 6A) (CP state from 6V PWM to 9V)",
     7: "Charging stopped by cloud (CP state from 6V PWM to 9V)",
     8: "Charging by tester",
+    10: "Unknown EV state (code 10)",
     90: "EV error"
 }
 
@@ -209,6 +211,8 @@ WALLBOX_EV_STATE_ICONS = {
     5: "mdi:car-electric",          # Car suspended
     6: "mdi:current-ac",            # Current below 6A
     7: "mdi:account-alert",         # No authentication
+    8: "mdi:test-tube",             # Tester charging
+    10: "mdi:help-circle",          # Unknown state
     90: "mdi:alert-circle"          # Error
 }
 
