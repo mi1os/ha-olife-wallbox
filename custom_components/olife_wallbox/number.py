@@ -502,6 +502,12 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(REG_RS485_ID, 1)
             if result is not None:
                 self._available = True
@@ -518,21 +524,20 @@ class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "RS485 ID register (5023) not supported by this device: %s", ex
-                    )
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("RS485 ID register (5023) not supported by this device, disabling entity")
+                    self._register_not_supported = True
+                self._available = False
                 self._register_available = False
-                self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating RS485 ID: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating RS485 ID: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
 
 class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     """Number entity for Wattmeter Mode setting."""
@@ -636,6 +641,12 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(REG_WATTMETER_MODE, 1)
             if result is not None:
                 self._available = True
@@ -652,18 +663,17 @@ class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "Wattmeter Mode register (5024) not supported by this device: %s", ex
-                    )
-                self._register_available = False
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("Wattmeter Mode register (5024) not supported by this device, disabling entity")
+                    self._register_not_supported = True
                 self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating Wattmeter Mode: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False 
+                self._register_available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating Wattmeter Mode: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False 

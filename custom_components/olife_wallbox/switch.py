@@ -306,18 +306,22 @@ class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
         return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
 
 class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox."""
+    """Switch for Olife Energy Wallbox automatic mode global setting."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:check-decagram"
         self._register = REG_AUTOMATIC
+        # Start as unavailable until we can verify register exists
+        self._available = False
         self._register_available = False
         
     @property
     def available(self):
-        """Return if entity is available."""
+        """Return True if entity is available."""
+        if hasattr(self, '_register_not_supported') and self._register_not_supported:
+            return False
         return self._available and self._register_available
         
     @property
@@ -343,8 +347,14 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
         return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
         
     async def async_update(self):
-        """Update the state of the switch."""
+        """Update the switch's state."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(self._register, 1)
             if result is not None:
                 self._available = True
@@ -355,41 +365,45 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read switch state from register %s (error count: %s)",
-                        self._register, self._error_count
+                        "Failed to read Automatic Mode Global (error count: %s)",
+                        self._error_count
                     )
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "Register %s not supported by this device: %s", self._register, ex
-                    )
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("Automatic Mode Global register (%s) not supported by this device, disabling entity", 
+                                self._register)
+                    self._register_not_supported = True
+                self._available = False
                 self._register_available = False
-                self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating switch state: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating Automatic Mode Global: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
 
 class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode dipswitch."""
+    """Switch for Olife Energy Wallbox automatic mode dipswitch setting."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:dip-switch"
         self._register = REG_AUTOMATIC_DIPSWITCH_ON
+        # Start as unavailable until we can verify register exists
+        self._available = False
         self._register_available = False
         
     @property
     def available(self):
-        """Return if entity is available."""
+        """Return True if entity is available."""
+        if hasattr(self, '_register_not_supported') and self._register_not_supported:
+            return False
         return self._available and self._register_available
         
     @property
@@ -400,7 +414,7 @@ class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self._device_unique_id}_automatic_dipswitch_switch"
+        return f"{self._device_unique_id}_auto_dipswitch"
         
     @property
     def entity_registry_enabled_default(self) -> bool:
@@ -415,8 +429,14 @@ class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
         return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
         
     async def async_update(self):
-        """Update the state of the switch."""
+        """Update the switch's state."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(self._register, 1)
             if result is not None:
                 self._available = True
@@ -427,41 +447,45 @@ class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read switch state from register %s (error count: %s)",
-                        self._register, self._error_count
+                        "Failed to read Automatic Mode Dipswitch (error count: %s)",
+                        self._error_count
                     )
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "Register %s not supported by this device: %s", self._register, ex
-                    )
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("Automatic Mode Dipswitch register (%s) not supported by this device, disabling entity", 
+                                self._register)
+                    self._register_not_supported = True
+                self._available = False
                 self._register_available = False
-                self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating switch state: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating Automatic Mode Dipswitch: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
 
 class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
-    """Switch to control max current dipswitch."""
+    """Switch for Olife Energy Wallbox max current dipswitch setting."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
         self._register = REG_MAX_CURRENT_DIPSWITCH_ON
+        # Start as unavailable until we can verify register exists
+        self._available = False
         self._register_available = False
         
     @property
     def available(self):
-        """Return if entity is available."""
+        """Return True if entity is available."""
+        if hasattr(self, '_register_not_supported') and self._register_not_supported:
+            return False
         return self._available and self._register_available
         
     @property
@@ -472,7 +496,7 @@ class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self._device_unique_id}_max_current_dipswitch_switch"
+        return f"{self._device_unique_id}_max_current_dipswitch"
         
     @property
     def entity_registry_enabled_default(self) -> bool:
@@ -487,8 +511,14 @@ class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
         return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
         
     async def async_update(self):
-        """Update the state of the switch."""
+        """Update the switch's state."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(self._register, 1)
             if result is not None:
                 self._available = True
@@ -499,41 +529,45 @@ class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read switch state from register %s (error count: %s)",
-                        self._register, self._error_count
+                        "Failed to read Max Current Dipswitch (error count: %s)",
+                        self._error_count
                     )
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "Register %s not supported by this device: %s", self._register, ex
-                    )
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("Max Current Dipswitch register (%s) not supported by this device, disabling entity", 
+                                self._register)
+                    self._register_not_supported = True
+                self._available = False
                 self._register_available = False
-                self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating switch state: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating Max Current Dipswitch: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
 
 class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
-    """Switch to control external current balancing."""
+    """Switch for Olife Energy Wallbox balancing external current setting."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:scale-balance"
+        self._attr_icon = "mdi:electric-switch"
         self._register = REG_BALANCING_EXTERNAL_CURRENT
+        # Start as unavailable until we can verify register exists
+        self._available = False
         self._register_available = False
         
     @property
     def available(self):
-        """Return if entity is available."""
+        """Return True if entity is available."""
+        if hasattr(self, '_register_not_supported') and self._register_not_supported:
+            return False
         return self._available and self._register_available
         
     @property
@@ -544,7 +578,7 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self._device_unique_id}_balancing_external_current_switch"
+        return f"{self._device_unique_id}_balancing_external_current"
         
     @property
     def entity_registry_enabled_default(self) -> bool:
@@ -555,12 +589,18 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
     def icon(self):
         """Return the icon to use in the frontend based on the switch state."""
         if not self._available:
-            return "mdi:scale-balance"
+            return "mdi:electric-switch"
         return "mdi:toggle-switch" if self._is_on else "mdi:toggle-switch-off"
         
     async def async_update(self):
-        """Update the state of the switch."""
+        """Update the switch's state."""
         try:
+            # Check if we've already determined the register is not available
+            if hasattr(self, '_register_not_supported') and self._register_not_supported:
+                self._available = False
+                self._register_available = False
+                return
+                
             result = await self._client.read_holding_registers(self._register, 1)
             if result is not None:
                 self._available = True
@@ -571,24 +611,24 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read switch state from register %s (error count: %s)",
-                        self._register, self._error_count
+                        "Failed to read Balancing External Current (error count: %s)",
+                        self._error_count
                     )
                 self._available = False
         except Exception as ex:
             self._error_count += 1
-            # Check if this is a specific Modbus exception indicating register not available
-            if "Slave Device Failure" in str(ex) or "Illegal Data Address" in str(ex):
-                if self._error_count <= 1 or self._error_count % ERROR_LOG_THRESHOLD == 0:
-                    _LOGGER.warning(
-                        "Register %s not supported by this device: %s", self._register, ex
-                    )
-                self._register_available = False
+            # Check for specific Modbus exceptions that indicate register is not supported
+            if "Slave Device Failure" in str(ex) or "Illegal Address" in str(ex):
+                # Register not supported by this model
+                if not hasattr(self, '_register_not_supported') or not self._register_not_supported:
+                    _LOGGER.info("Balancing External Current register (%s) not supported by this device, disabling entity", 
+                                self._register)
+                    self._register_not_supported = True
                 self._available = False
-            else:
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Error updating switch state: %s (error count: %s)",
-                        ex, self._error_count
-                    )
-                self._available = False 
+                self._register_available = False
+            elif self._should_log_error():
+                _LOGGER.warning(
+                    "Error updating Balancing External Current: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False 
