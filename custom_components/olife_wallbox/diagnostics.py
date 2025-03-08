@@ -92,7 +92,6 @@ async def async_get_config_entry_diagnostics(
             # Add entity data from coordinator
             data["statistics"]["entities"] = {
                 "last_update_success": coordinator.last_update_success,
-                "last_update": coordinator.last_update.isoformat() if coordinator.last_update else None,
                 "data": coordinator.data if coordinator.data else {},
             }
             
