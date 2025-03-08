@@ -106,10 +106,6 @@ from .const import (
     CP_STATES,
     CP_STATE_DESCRIPTIONS,
     CP_STATE_ICONS,
-    EVENT_EV_PLUGGED_IN,
-    EVENT_EV_PLUGGED_OUT,
-    EVENT_CHARGING_STARTED,
-    EVENT_CHARGING_STOPPED,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
