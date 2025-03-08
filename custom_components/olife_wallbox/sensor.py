@@ -238,8 +238,8 @@ async def async_setup_entry(
             
             # Initialize data structure for each connector
             # IMPORTANT: We use letter-based naming convention for connectors:
-            # - connector_A: left side connector (formerly known as connector_1)
-            # - connector_B: right side connector (formerly known as connector_2)
+            # - connector_A: left side connector
+            # - connector_B: right side connector
             # This standardization reduces confusion and matches physical labeling.
             data["connector_A"] = {}
             
@@ -582,7 +582,13 @@ async def async_setup_entry(
     connector_mapping = {1: "A", 2: "B"}  # Map from index to letter
     for connector_idx in range(1, num_connectors + 1):
         connector_letter = connector_mapping[connector_idx]
-        connector_key = f"connector_{connector_letter}"
+        
+        # For single-connector wallboxes, we always use connector_B data
+        if num_connectors == 1:
+            connector_key = "connector_B"
+        else:
+            connector_key = f"connector_{connector_letter}"
+            
         connector_name = f"{name}" if num_connectors == 1 else f"{name} Connector {connector_letter}"
         
         # Add a suffix to the device_unique_id if we have multiple connectors
@@ -767,7 +773,7 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         # Phase sensors should be available whether using external or internal wattmeter
         # We no longer require an external wattmeter for phase sensors to be available
         
-        # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
+        # Handle nested keys (e.g., "connector_A.wallbox_ev_state")
         if '.' in self._key:
             parts = self._key.split('.')
             data = self.coordinator.data
@@ -806,15 +812,6 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
             parts = key.split('.')
             data = self.coordinator.data
             
-            # Convert legacy numerical connector keys to letter-based ones (connector_1 -> connector_A, connector_2 -> connector_B)
-            if parts[0].startswith("connector_") and parts[0] in ["connector_1", "connector_2"]:
-                connector_idx = int(parts[0].split("_")[1])
-                connector_letter = "A" if connector_idx == 1 else "B"
-                parts[0] = f"connector_{connector_letter}"
-                
-                # Log a deprecation warning when legacy keys are used
-                _LOGGER.debug("Legacy connector key %s used, converted to %s", key, '.'.join(parts))
-            
             # Traverse the nested dictionary
             for part in parts:
                 if not isinstance(data, dict) or part not in data:
@@ -823,7 +820,7 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
             
             return data
         else:
-            # Direct key - no conversion needed as we don't use bare connector_# keys
+            # Direct key
             return self.coordinator.data.get(key)
 
 class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
