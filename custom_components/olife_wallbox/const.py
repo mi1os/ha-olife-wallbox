@@ -202,6 +202,23 @@ CP_STATES = {
     13: "Error: Connector Missing"
 }
 
+# CP State detailed descriptions
+CP_STATE_DESCRIPTIONS = {
+    1: "Ready: Control Pilot signal at +12V, waiting for EV",
+    2: "EV Connected: EV detected, CP signal at +9V",
+    3: "Preparing: PWM signal established at +9V/-12V, authenticating or preparing to charge",
+    4: "EV Requires Charging: PWM signal at +6V/-12V, EV is ready to accept power",
+    5: "Special Test State: Fixed +6V signal, used for special testing modes",
+    6: "Error: Ventilation Required - The charging area requires ventilation",
+    7: "Error: -12V Missing - Problem with Control Pilot negative voltage",
+    8: "Error: CP Voltage Too Low - Control Pilot signal voltage below acceptable range",
+    9: "Error: CP Voltage Too High - Control Pilot signal voltage above acceptable range",
+    10: "Error: CP Shorted - Control Pilot line shorted to ground (0V)",
+    11: "Unknown State - Control Pilot in undefined state",
+    12: "Error: RCD Fault - Residual Current Device detected fault current",
+    13: "Error: Connector Missing - Physical charging connector not detected"
+}
+
 # EV State icons mapping
 WALLBOX_EV_STATE_ICONS = {
     1: "mdi:ev-plug-disconnect",    # Cable unplugged

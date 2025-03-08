@@ -760,22 +760,30 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        if self._raw_state is None:
+        raw_state = self._get_value_from_data()
+        if raw_state is None:
             return {}
             
-        return {
-            "raw_state": self._raw_state,
-            "state_code": self._raw_state,
+        attributes = {
+            "raw_state": raw_state,
+            "state_code": raw_state,
         }
+        
+        # Add detailed description if available
+        if raw_state in WALLBOX_EV_STATE_DESCRIPTIONS:
+            attributes["description"] = WALLBOX_EV_STATE_DESCRIPTIONS[raw_state]
+            
+        return attributes
         
     @property
     def icon(self):
         """Return the icon to use in the frontend based on the EV state."""
-        if not self.available or self._raw_state is None:
-            return "mdi:help-circle-outline"
+        raw_state = self._get_value_from_data()
+        if not self.available or raw_state is None:
+            return "mdi:ev-station-off"
             
         return WALLBOX_EV_STATE_ICONS.get(
-            self._raw_state, 
+            raw_state, 
             "mdi:help-circle-outline"
         )
         
@@ -1400,22 +1408,30 @@ class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
     @property
     def extra_state_attributes(self):
         """Return additional state attributes."""
-        if self._raw_state is None:
+        raw_state = self._get_value_from_data()
+        if raw_state is None:
             return {}
             
-        return {
-            "raw_state": self._raw_state,
-            "state_code": self._raw_state,
+        attributes = {
+            "raw_state": raw_state,
+            "state_code": raw_state,
         }
+        
+        # Add detailed description if available
+        if raw_state in CP_STATE_DESCRIPTIONS:
+            attributes["description"] = CP_STATE_DESCRIPTIONS[raw_state]
+            
+        return attributes
         
     @property
     def icon(self):
         """Return the icon to use in the frontend based on the CP state."""
-        if not self.available or self._raw_state is None:
+        raw_state = self._get_value_from_data()
+        if not self.available or raw_state is None:
             return "mdi:help-circle-outline"
             
         return CP_STATE_ICONS.get(
-            self._raw_state, 
+            raw_state, 
             "mdi:help-circle-outline"
         )
         
