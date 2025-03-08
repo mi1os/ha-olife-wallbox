@@ -67,8 +67,7 @@ from .const import (
     REG_CP_STATE_B,
     REG_PREV_CP_STATE_A,
     REG_PREV_CP_STATE_B,
-    REG_MAX_STATION_CURRENT_A,
-    REG_MAX_STATION_CURRENT_B,
+    REG_MAX_STATION_CURRENT,
     REG_LED_PWM,
     REG_ENERGY_SUM_A,
     REG_ENERGY_SUM_B,
@@ -107,6 +106,21 @@ from .const import (
     CP_STATES,
     CP_STATE_DESCRIPTIONS,
     CP_STATE_ICONS,
+    REG_EXT_ENERGY_L1,
+    REG_EXT_ENERGY_L2,
+    REG_EXT_ENERGY_L3,
+    REG_EXT_ENERGY_SUM,
+    REG_EXT_ENERGY_FLASH,
+    REG_EXT_POWER_L1,
+    REG_EXT_POWER_L2,
+    REG_EXT_POWER_L3,
+    REG_EXT_POWER_SUM,
+    REG_EXT_CURRENT_L1,
+    REG_EXT_CURRENT_L2,
+    REG_EXT_CURRENT_L3,
+    REG_EXT_VOLTAGE_L1,
+    REG_EXT_VOLTAGE_L2,
+    REG_EXT_VOLTAGE_L3,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -212,10 +226,12 @@ async def async_setup_entry(
             external_wattmeter = await client.read_holding_registers(REG_EXTERNAL_WATTMETER, 1)
             if external_wattmeter is not None:
                 data["external_wattmeter_present"] = (external_wattmeter[0] == 1)
-                _LOGGER.debug("External wattmeter present: %s", data["external_wattmeter_present"])
+                _LOGGER.info("External wattmeter status: %s (register value: %s)", 
+                           "Present" if data["external_wattmeter_present"] else "Not present", 
+                           external_wattmeter[0])
             else:
                 data["external_wattmeter_present"] = False
-                _LOGGER.debug("Could not read external wattmeter status, assuming not present")
+                _LOGGER.warning("Could not read external wattmeter status, assuming not present")
             
             # Get the number of connectors and determine which ones to use
             connectors_in_use = device_info.get("connectors_in_use", ["B"])
@@ -237,7 +253,7 @@ async def async_setup_entry(
                 wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE_B, 1)
                 current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT_B, 1)
                 charge_current = await client.read_holding_registers(REG_CHARGE_CURRENT_B, 1)
-                max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT_B, 1)
+                max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
                 led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
                 
                 # Store in both connector_A and connector_B for compatibility
@@ -302,190 +318,243 @@ async def async_setup_entry(
                 
                 # Read phase data if external wattmeter is present
                 if data.get("external_wattmeter_present", False):
-                    _LOGGER.debug("Reading phase data for single-connector wallbox (B connector)")
+                    _LOGGER.info("Using external wattmeter registers (4200-4219) for phase data")
                     
                     # Read phase power
-                    for phase_num in range(1, 4):
-                        power_reg = getattr(sys.modules[__name__], f"REG_POWER_L{phase_num}_B")
-                        power_val = await client.read_holding_registers(power_reg, 1)
-                        if power_val is not None:
-                            key = f"power_l{phase_num}"
-                            data["connector_A"][key] = power_val[0]
-                            data["connector_B"][key] = power_val[0]
-                            _LOGGER.debug("Read power for phase %s: %s W", phase_num, power_val[0])
-                    
-                    # Read phase current
-                    for phase_num in range(1, 4):
-                        current_reg = getattr(sys.modules[__name__], f"REG_CURRENT_L{phase_num}_B")
-                        current_val = await client.read_holding_registers(current_reg, 1)
-                        if current_val is not None:
-                            key = f"current_l{phase_num}"
-                            data["connector_A"][key] = current_val[0]
-                            data["connector_B"][key] = current_val[0]
-                            _LOGGER.debug("Read current for phase %s: %s mA", phase_num, current_val[0])
-                    
-                    # Read phase voltage
-                    for phase_num in range(1, 4):
-                        voltage_reg = getattr(sys.modules[__name__], f"REG_VOLTAGE_L{phase_num}_B")
-                        voltage_val = await client.read_holding_registers(voltage_reg, 1)
-                        if voltage_val is not None:
-                            key = f"voltage_l{phase_num}"
-                            data["connector_A"][key] = voltage_val[0]
-                            data["connector_B"][key] = voltage_val[0]
-                            _LOGGER.debug("Read voltage for phase %s: %s (0.1V)", phase_num, voltage_val[0])
-                    
-                    # Read phase energy
-                    for phase_num in range(1, 4):
-                        energy_reg = getattr(sys.modules[__name__], f"REG_ENERGY_L{phase_num}_B")
-                        energy_val = await client.read_holding_registers(energy_reg, 2)  # Read as 32-bit
-                        if energy_val is not None and len(energy_val) >= 2:
-                            energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
-                            key = f"energy_l{phase_num}"
-                            data["connector_A"][key] = energy_val_32bit
-                            data["connector_B"][key] = energy_val_32bit
-                            _LOGGER.debug("Read energy for phase %s: %s mWh", phase_num, energy_val_32bit)
-                else:
-                    _LOGGER.debug("External wattmeter not present, skipping phase data")
-                
-            else:
-                # For dual-connector Wallboxes, we need to handle both A and B
-                # Connector A (left side) - read from A registers
-                if "A" in connectors_in_use:
-                    wallbox_ev_state_a = await client.read_holding_registers(REG_WALLBOX_EV_STATE_A, 1)
-                    current_limit_a = await client.read_holding_registers(REG_CURRENT_LIMIT_A, 1)
-                    charge_current_a = await client.read_holding_registers(REG_CHARGE_CURRENT_A, 1)
-                    max_station_current_a = await client.read_holding_registers(REG_MAX_STATION_CURRENT_A, 1)
-                    
-                    # Store values for connector A
-                    if wallbox_ev_state_a is not None:
-                        data["connector_A"]["wallbox_ev_state"] = wallbox_ev_state_a[0]
-                    
-                    if current_limit_a is not None:
-                        data["connector_A"]["current_limit"] = current_limit_a[0]
-                    
-                    if charge_current_a is not None:
-                        data["connector_A"]["charge_current"] = charge_current_a[0]
-                    
-                    if max_station_current_a is not None:
-                        data["connector_A"]["max_station_current"] = max_station_current_a[0]
-                    
-                    if led_pwm is not None:
-                        data["connector_A"]["led_pwm"] = led_pwm[0]
-                    
-                    # Similar logic for other A connector sensors...
-                
-                # Connector B (right side) - read from B registers
-                if "B" in connectors_in_use:
-                    wallbox_ev_state_b = await client.read_holding_registers(REG_WALLBOX_EV_STATE_B, 1)
-                    current_limit_b = await client.read_holding_registers(REG_CURRENT_LIMIT_B, 1)
-                    charge_current_b = await client.read_holding_registers(REG_CHARGE_CURRENT_B, 1)
-                    max_station_current_b = await client.read_holding_registers(REG_MAX_STATION_CURRENT_B, 1)
-                    
-                    # Store values for connector B
-                    if wallbox_ev_state_b is not None:
-                        data["connector_B"]["wallbox_ev_state"] = wallbox_ev_state_b[0]
-                    
-                    if current_limit_b is not None:
-                        data["connector_B"]["current_limit"] = current_limit_b[0]
-                    
-                    if charge_current_b is not None:
-                        data["connector_B"]["charge_current"] = charge_current_b[0]
-                    
-                    if max_station_current_b is not None:
-                        data["connector_B"]["max_station_current"] = max_station_current_b[0]
-                    
-                    if led_pwm is not None:
-                        data["connector_B"]["led_pwm"] = led_pwm[0]
-                    
-                    # Similar logic for other B connector sensors...
-                
-                # Read phase data for both connectors if external wattmeter is present
-                if data.get("external_wattmeter_present", False):
-                    _LOGGER.debug("Reading phase data for dual-connector wallbox")
-                    
-                    # For connector A (if used)
-                    if "A" in connectors_in_use:
-                        _LOGGER.debug("Reading phase data for connector A")
-                        
-                        # Read phase power
+                    try:
                         for phase_num in range(1, 4):
-                            power_reg = getattr(sys.modules[__name__], f"REG_POWER_L{phase_num}_A")
+                            # Map phase number to external wattmeter registers
+                            if phase_num == 1:
+                                power_reg = REG_EXT_POWER_L1
+                                current_reg = REG_EXT_CURRENT_L1
+                                voltage_reg = REG_EXT_VOLTAGE_L1
+                                energy_reg = REG_EXT_ENERGY_L1
+                            elif phase_num == 2:
+                                power_reg = REG_EXT_POWER_L2
+                                current_reg = REG_EXT_CURRENT_L2
+                                voltage_reg = REG_EXT_VOLTAGE_L2
+                                energy_reg = REG_EXT_ENERGY_L2
+                            else:  # phase_num == 3
+                                power_reg = REG_EXT_POWER_L3
+                                current_reg = REG_EXT_CURRENT_L3
+                                voltage_reg = REG_EXT_VOLTAGE_L3
+                                energy_reg = REG_EXT_ENERGY_L3
+                            
+                            # Read power
                             power_val = await client.read_holding_registers(power_reg, 1)
                             if power_val is not None:
                                 key = f"power_l{phase_num}"
+                                # Store in both connector data structures since it's an external meter
                                 data["connector_A"][key] = power_val[0]
-                                _LOGGER.debug("Read power for phase %s (connector A): %s W", phase_num, power_val[0])
-                        
-                        # Read phase current
-                        for phase_num in range(1, 4):
-                            current_reg = getattr(sys.modules[__name__], f"REG_CURRENT_L{phase_num}_A")
+                                data["connector_B"][key] = power_val[0]
+                                _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X) from external wattmeter", 
+                                            phase_num, power_val[0], power_val[0])
+                            
+                            # Read current
                             current_val = await client.read_holding_registers(current_reg, 1)
                             if current_val is not None:
                                 key = f"current_l{phase_num}"
+                                # Store in both connector data structures since it's an external meter
                                 data["connector_A"][key] = current_val[0]
-                                _LOGGER.debug("Read current for phase %s (connector A): %s mA", phase_num, current_val[0])
-                        
-                        # Read phase voltage
-                        for phase_num in range(1, 4):
-                            voltage_reg = getattr(sys.modules[__name__], f"REG_VOLTAGE_L{phase_num}_A")
+                                data["connector_B"][key] = current_val[0]
+                                _LOGGER.debug("Read current for phase %s: %s mA (raw: 0x%04X) from external wattmeter", 
+                                            phase_num, current_val[0], current_val[0])
+                            
+                            # Read voltage
                             voltage_val = await client.read_holding_registers(voltage_reg, 1)
                             if voltage_val is not None:
                                 key = f"voltage_l{phase_num}"
+                                # Store in both connector data structures since it's an external meter
                                 data["connector_A"][key] = voltage_val[0]
-                                _LOGGER.debug("Read voltage for phase %s (connector A): %s (0.1V)", phase_num, voltage_val[0])
-                        
-                        # Read phase energy
-                        for phase_num in range(1, 4):
-                            energy_reg = getattr(sys.modules[__name__], f"REG_ENERGY_L{phase_num}_A")
+                                data["connector_B"][key] = voltage_val[0]
+                                _LOGGER.debug("Read voltage for phase %s: %s (0.1V) (raw: 0x%04X) from external wattmeter", 
+                                            phase_num, voltage_val[0], voltage_val[0])
+                            
+                            # Read energy
                             energy_val = await client.read_holding_registers(energy_reg, 2)  # Read as 32-bit
                             if energy_val is not None and len(energy_val) >= 2:
                                 energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                                 key = f"energy_l{phase_num}"
+                                # Store in both connector data structures since it's an external meter
                                 data["connector_A"][key] = energy_val_32bit
-                                _LOGGER.debug("Read energy for phase %s (connector A): %s mWh", phase_num, energy_val_32bit)
+                                data["connector_B"][key] = energy_val_32bit
+                                _LOGGER.debug("Read energy for phase %s: %s mWh (raw: [0x%04X, 0x%04X], combined: 0x%08X) from external wattmeter", 
+                                            phase_num, energy_val_32bit, energy_val[0], energy_val[1], energy_val_32bit)
+                    except Exception as ex:
+                        _LOGGER.error("Error reading from external wattmeter: %s", ex)
+                else:
+                    _LOGGER.info("Using internal wattmeter registers for phase data")
                     
-                    # For connector B (if used)
-                    if "B" in connectors_in_use:
-                        _LOGGER.debug("Reading phase data for connector B")
+                    # For single-connector Wallboxes, we read from Connector B internal registers
+                    if num_connectors == 1:
+                        _LOGGER.debug("Reading phase data for single-connector wallbox (B connector)")
                         
                         # Read phase power
                         for phase_num in range(1, 4):
-                            power_reg = getattr(sys.modules[__name__], f"REG_POWER_L{phase_num}_B")
+                            # Map phase number to B connector internal registers
+                            if phase_num == 1:
+                                power_reg = REG_POWER_L1_B
+                                current_reg = REG_CURRENT_L1_B
+                                voltage_reg = REG_VOLTAGE_L1_B
+                                energy_reg = REG_ENERGY_L1_B
+                            elif phase_num == 2:
+                                power_reg = REG_POWER_L2_B
+                                current_reg = REG_CURRENT_L2_B
+                                voltage_reg = REG_VOLTAGE_L2_B
+                                energy_reg = REG_ENERGY_L2_B
+                            else:  # phase_num == 3
+                                power_reg = REG_POWER_L3_B
+                                current_reg = REG_CURRENT_L3_B
+                                voltage_reg = REG_VOLTAGE_L3_B
+                                energy_reg = REG_ENERGY_L3_B
+                            
+                            # Read power
                             power_val = await client.read_holding_registers(power_reg, 1)
                             if power_val is not None:
                                 key = f"power_l{phase_num}"
                                 data["connector_B"][key] = power_val[0]
-                                _LOGGER.debug("Read power for phase %s (connector B): %s W", phase_num, power_val[0])
-                        
-                        # Read phase current
-                        for phase_num in range(1, 4):
-                            current_reg = getattr(sys.modules[__name__], f"REG_CURRENT_L{phase_num}_B")
+                                _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X) from B connector", 
+                                              phase_num, power_val[0], power_val[0])
+                            
+                            # Read current
                             current_val = await client.read_holding_registers(current_reg, 1)
                             if current_val is not None:
                                 key = f"current_l{phase_num}"
                                 data["connector_B"][key] = current_val[0]
-                                _LOGGER.debug("Read current for phase %s (connector B): %s mA", phase_num, current_val[0])
-                        
-                        # Read phase voltage
-                        for phase_num in range(1, 4):
-                            voltage_reg = getattr(sys.modules[__name__], f"REG_VOLTAGE_L{phase_num}_B")
+                                _LOGGER.debug("Read current for phase %s: %s mA (raw: 0x%04X) from B connector", 
+                                              phase_num, current_val[0], current_val[0])
+                            
+                            # Read voltage
                             voltage_val = await client.read_holding_registers(voltage_reg, 1)
                             if voltage_val is not None:
                                 key = f"voltage_l{phase_num}"
                                 data["connector_B"][key] = voltage_val[0]
-                                _LOGGER.debug("Read voltage for phase %s (connector B): %s (0.1V)", phase_num, voltage_val[0])
-                        
-                        # Read phase energy
-                        for phase_num in range(1, 4):
-                            energy_reg = getattr(sys.modules[__name__], f"REG_ENERGY_L{phase_num}_B")
+                                _LOGGER.debug("Read voltage for phase %s: %s (0.1V) (raw: 0x%04X) from B connector", 
+                                              phase_num, voltage_val[0], voltage_val[0])
+                            
+                            # Read energy
                             energy_val = await client.read_holding_registers(energy_reg, 2)  # Read as 32-bit
                             if energy_val is not None and len(energy_val) >= 2:
                                 energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                                 key = f"energy_l{phase_num}"
                                 data["connector_B"][key] = energy_val_32bit
-                                _LOGGER.debug("Read energy for phase %s (connector B): %s mWh", phase_num, energy_val_32bit)
-                else:
-                    _LOGGER.debug("External wattmeter not present, skipping phase data")
+                                _LOGGER.debug("Read energy for phase %s: %s mWh (raw: [0x%04X, 0x%04X], combined: 0x%08X) from B connector", 
+                                              phase_num, energy_val_32bit, energy_val[0], energy_val[1], energy_val_32bit)
+                    else:
+                        # For dual-connector Wallboxes, we read from both A and B connector internal registers
+                        _LOGGER.debug("Reading phase data for dual-connector wallbox")
+                        
+                        # For connector A (if used)
+                        if "A" in connectors_in_use:
+                            _LOGGER.debug("Reading phase data for connector A")
+                            
+                            # Read phase power
+                            for phase_num in range(1, 4):
+                                # Map phase number to A connector internal registers
+                                if phase_num == 1:
+                                    power_reg = REG_POWER_L1_A
+                                    current_reg = REG_CURRENT_L1_A
+                                    voltage_reg = REG_VOLTAGE_L1_A
+                                    energy_reg = REG_ENERGY_L1_A
+                                elif phase_num == 2:
+                                    power_reg = REG_POWER_L2_A
+                                    current_reg = REG_CURRENT_L2_A
+                                    voltage_reg = REG_VOLTAGE_L2_A
+                                    energy_reg = REG_ENERGY_L2_A
+                                else:  # phase_num == 3
+                                    power_reg = REG_POWER_L3_A
+                                    current_reg = REG_CURRENT_L3_A
+                                    voltage_reg = REG_VOLTAGE_L3_A
+                                    energy_reg = REG_ENERGY_L3_A
+                                
+                                # Read power
+                                power_val = await client.read_holding_registers(power_reg, 1)
+                                if power_val is not None:
+                                    key = f"power_l{phase_num}"
+                                    data["connector_A"][key] = power_val[0]
+                                    _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X) from A connector", 
+                                                phase_num, power_val[0], power_val[0])
+                                
+                                # Read current
+                                current_val = await client.read_holding_registers(current_reg, 1)
+                                if current_val is not None:
+                                    key = f"current_l{phase_num}"
+                                    data["connector_A"][key] = current_val[0]
+                                    _LOGGER.debug("Read current for phase %s: %s mA (raw: 0x%04X) from A connector", 
+                                                phase_num, current_val[0], current_val[0])
+                                
+                                # Read voltage
+                                voltage_val = await client.read_holding_registers(voltage_reg, 1)
+                                if voltage_val is not None:
+                                    key = f"voltage_l{phase_num}"
+                                    data["connector_A"][key] = voltage_val[0]
+                                    _LOGGER.debug("Read voltage for phase %s: %s (0.1V) (raw: 0x%04X) from A connector", 
+                                                phase_num, voltage_val[0], voltage_val[0])
+                                
+                                # Read energy
+                                energy_val = await client.read_holding_registers(energy_reg, 2)  # Read as 32-bit
+                                if energy_val is not None and len(energy_val) >= 2:
+                                    energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
+                                    key = f"energy_l{phase_num}"
+                                    data["connector_A"][key] = energy_val_32bit
+                                    _LOGGER.debug("Read energy for phase %s: %s mWh (raw: [0x%04X, 0x%04X], combined: 0x%08X) from A connector", 
+                                                phase_num, energy_val_32bit, energy_val[0], energy_val[1], energy_val_32bit)
+                        
+                        # For connector B (if used)
+                        if "B" in connectors_in_use:
+                            _LOGGER.debug("Reading phase data for connector B")
+                            
+                            # Read phase power
+                            for phase_num in range(1, 4):
+                                # Map phase number to B connector internal registers
+                                if phase_num == 1:
+                                    power_reg = REG_POWER_L1_B
+                                    current_reg = REG_CURRENT_L1_B
+                                    voltage_reg = REG_VOLTAGE_L1_B
+                                    energy_reg = REG_ENERGY_L1_B
+                                elif phase_num == 2:
+                                    power_reg = REG_POWER_L2_B
+                                    current_reg = REG_CURRENT_L2_B
+                                    voltage_reg = REG_VOLTAGE_L2_B
+                                    energy_reg = REG_ENERGY_L2_B
+                                else:  # phase_num == 3
+                                    power_reg = REG_POWER_L3_B
+                                    current_reg = REG_CURRENT_L3_B
+                                    voltage_reg = REG_VOLTAGE_L3_B
+                                    energy_reg = REG_ENERGY_L3_B
+                                
+                                # Read power
+                                power_val = await client.read_holding_registers(power_reg, 1)
+                                if power_val is not None:
+                                    key = f"power_l{phase_num}"
+                                    data["connector_B"][key] = power_val[0]
+                                    _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X) from B connector", 
+                                                  phase_num, power_val[0], power_val[0])
+                                
+                                # Read current
+                                current_val = await client.read_holding_registers(current_reg, 1)
+                                if current_val is not None:
+                                    key = f"current_l{phase_num}"
+                                    data["connector_B"][key] = current_val[0]
+                                    _LOGGER.debug("Read current for phase %s: %s mA (raw: 0x%04X) from B connector", 
+                                                  phase_num, current_val[0], current_val[0])
+                                
+                                # Read voltage
+                                voltage_val = await client.read_holding_registers(voltage_reg, 1)
+                                if voltage_val is not None:
+                                    key = f"voltage_l{phase_num}"
+                                    data["connector_B"][key] = voltage_val[0]
+                                    _LOGGER.debug("Read voltage for phase %s: %s (0.1V) (raw: 0x%04X) from B connector", 
+                                                  phase_num, voltage_val[0], voltage_val[0])
+                                
+                                # Read energy
+                                energy_val = await client.read_holding_registers(energy_reg, 2)  # Read as 32-bit
+                                if energy_val is not None and len(energy_val) >= 2:
+                                    energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
+                                    key = f"energy_l{phase_num}"
+                                    data["connector_B"][key] = energy_val_32bit
+                                    _LOGGER.debug("Read energy for phase %s: %s mWh (raw: [0x%04X, 0x%04X], combined: 0x%08X) from B connector", 
+                                                  phase_num, energy_val_32bit, energy_val[0], energy_val[1], energy_val_32bit)
             
             return data
         except Exception as exception:
@@ -695,11 +764,8 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         if not self.coordinator.last_update_success:
             return False
             
-        # Special handling for phase sensors - they require external wattmeter
-        if isinstance(self, (OlifeWallboxPhasePowerSensor, OlifeWallboxPhaseCurrentSensor, 
-                            OlifeWallboxPhaseVoltageSensor, OlifeWallboxPhaseEnergySensor)):
-            if not self.coordinator.data.get("external_wattmeter_present", False):
-                return False
+        # Phase sensors should be available whether using external or internal wattmeter
+        # We no longer require an external wattmeter for phase sensors to be available
         
         # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
         if '.' in self._key:

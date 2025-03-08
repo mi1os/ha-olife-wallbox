@@ -31,6 +31,7 @@ DEFAULT_READ_ONLY = False
 
 # Global station registers (not connector-specific)
 REG_LED_PWM = 5008             # LED PWM value (global station setting)
+REG_MAX_STATION_CURRENT = 5006  # Global maximum station current (for the entire wallbox)
 
 # Connector A Registers (2000-2026, 4000-4019)
 # EVSE-A registers
@@ -157,6 +158,23 @@ REG_NUM_CONNECTORS = 6015      # Connector count (active connectors)
 
 # Wattmeter detection
 REG_EXTERNAL_WATTMETER = 6013  # 0 - disconnected, 1 - connected
+
+# External Wattmeter registers (4200-4219)
+REG_EXT_ENERGY_L1 = 4200       # Energy phase 1 in mWh (x0,001 Wh) (external wattmeter)
+REG_EXT_ENERGY_L2 = 4202       # Energy phase 2 in mWh (x0,001 Wh) (external wattmeter)
+REG_EXT_ENERGY_L3 = 4204       # Energy phase 3 in mWh (x0,001 Wh) (external wattmeter)
+REG_EXT_ENERGY_SUM = 4206      # Total station energy in mWh (x1 Wh) (external wattmeter)
+REG_EXT_ENERGY_FLASH = 4208    # Energy in Wh, saved to flash every 24 hours (external wattmeter)
+REG_EXT_POWER_L1 = 4210        # Power of phase 1 in W truePOWER/RealPOWER (external wattmeter)
+REG_EXT_POWER_L2 = 4211        # Power of phase 2 in W truePOWER/RealPOWER (external wattmeter)
+REG_EXT_POWER_L3 = 4212        # Power of phase 3 in W truePOWER/RealPOWER (external wattmeter)
+REG_EXT_POWER_SUM = 4213       # Power of all phases (1+2+3) in W truePOWER/RealPOWER (external wattmeter)
+REG_EXT_CURRENT_L1 = 4214      # Current of phase 1 in mA (external wattmeter)
+REG_EXT_CURRENT_L2 = 4215      # Current of phase 2 in mA (external wattmeter)
+REG_EXT_CURRENT_L3 = 4216      # Current of phase 3 in mA (external wattmeter)
+REG_EXT_VOLTAGE_L1 = 4217      # RMS voltage of phase 1 in 0.1V (external wattmeter)
+REG_EXT_VOLTAGE_L2 = 4218      # RMS voltage of phase 2 in 0.1V (external wattmeter)
+REG_EXT_VOLTAGE_L3 = 4219      # RMS voltage of phase 3 in 0.1V (external wattmeter)
 
 # EV State mapping
 WALLBOX_EV_STATES = {

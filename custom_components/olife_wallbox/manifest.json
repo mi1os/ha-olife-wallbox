@@ -4,7 +4,7 @@
   "documentation": "https://github.com/mi1os/ha-olife-wallbox",
   "dependencies": ["modbus"],
   "codeowners": ["@mi1os"],
-  "requirements": ["pymodbus>=3.0.0"],
+  "requirements": ["pymodbus==3.5.4"],
   "config_flow": true,
   "iot_class": "local_polling",
   "version": "0.7.1",

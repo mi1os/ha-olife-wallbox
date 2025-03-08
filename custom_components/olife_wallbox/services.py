@@ -19,8 +19,7 @@ from .const import (
     REG_CHARGING_ENABLE_B,
     REG_CURRENT_LIMIT_A,
     REG_CURRENT_LIMIT_B,
-    REG_MAX_STATION_CURRENT_A,
-    REG_MAX_STATION_CURRENT_B,
+    REG_MAX_STATION_CURRENT,
     REG_LED_PWM,
 )
 from .modbus_client import OlifeWallboxModbusClient

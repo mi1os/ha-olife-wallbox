@@ -25,8 +25,7 @@ from .const import (
     REG_CURRENT_LIMIT_A,
     REG_CURRENT_LIMIT_B,
     REG_LED_PWM,
-    REG_MAX_STATION_CURRENT_A,
-    REG_MAX_STATION_CURRENT_B,
+    REG_MAX_STATION_CURRENT,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -382,7 +381,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
-            result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT_A, 1)
+            result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             if result is not None:
                 self._available = True
                 self._value = result[0]
@@ -391,7 +390,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
-                        "Failed to read PP current limit (error count: %s)",
+                        "Failed to read max station current (error count: %s)",
                         self._error_count
                     )
                 self._available = False
@@ -399,7 +398,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             self._error_count += 1
             if self._should_log_error():
                 _LOGGER.error(
-                    "Error updating PP current limit: %s (error count: %s)",
+                    "Error updating max station current: %s (error count: %s)",
                     ex, self._error_count
                 )
             self._available = False 
