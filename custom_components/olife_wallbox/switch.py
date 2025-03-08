@@ -28,6 +28,10 @@ from .const import (
     REG_VERIFY_USER_B,
     REG_AUTOMATIC_A,
     REG_AUTOMATIC_B,
+    REG_AUTOMATIC,
+    REG_AUTOMATIC_DIPSWITCH_ON,
+    REG_MAX_CURRENT_DIPSWITCH_ON,
+    REG_BALANCING_EXTERNAL_CURRENT,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -60,10 +64,22 @@ async def async_setup_entry(
             sw_version="1.0",  # You can update this with actual firmware version if available
         )
         
+        # Check if we're in read-only mode
+        read_only = entry.options.get(CONF_READ_ONLY, DEFAULT_READ_ONLY)
+        
+        if read_only:
+            _LOGGER.info("Running in read-only mode, no switch entities will be created")
+            return
+            
         entities = [
             OlifeWallboxChargingSwitch(client, name, device_info, device_unique_id),
             OlifeWallboxVerifyUserSwitch(client, name, device_info, device_unique_id),
             OlifeWallboxAutomaticSwitch(client, name, device_info, device_unique_id),
+            # Add new global switches
+            OlifeWallboxAutomaticGlobalSwitch(client, name, device_info, device_unique_id),
+            OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),
+            OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),
+            OlifeWallboxBalancingExternalCurrentSwitch(client, name, device_info, device_unique_id),
         ]
         
         async_add_entities(entities)
@@ -281,6 +297,110 @@ class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
     def unique_id(self):
         """Return a unique ID."""
         return f"{self._device_unique_id}_automatic_switch"
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the switch state."""
+        if not self._available:
+            return "mdi:lightning-bolt-off"
+        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+
+class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
+    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the switch."""
+        super().__init__(client, name, device_info, device_unique_id)
+        self._attr_icon = "mdi:check-decagram"
+        self._register = REG_AUTOMATIC
+
+    @property
+    def name(self):
+        """Return the name of the switch."""
+        return "Automatic Mode Global"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_automatic_global_switch"
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the switch state."""
+        if not self._available:
+            return "mdi:lightning-bolt-off"
+        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+
+class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
+    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the switch."""
+        super().__init__(client, name, device_info, device_unique_id)
+        self._attr_icon = "mdi:check-decagram"
+        self._register = REG_AUTOMATIC_DIPSWITCH_ON
+
+    @property
+    def name(self):
+        """Return the name of the switch."""
+        return "Automatic Mode Dipswitch"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_automatic_dipswitch_switch"
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the switch state."""
+        if not self._available:
+            return "mdi:lightning-bolt-off"
+        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+
+class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
+    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the switch."""
+        super().__init__(client, name, device_info, device_unique_id)
+        self._attr_icon = "mdi:check-decagram"
+        self._register = REG_MAX_CURRENT_DIPSWITCH_ON
+
+    @property
+    def name(self):
+        """Return the name of the switch."""
+        return "Max Current Dipswitch"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_max_current_dipswitch_switch"
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend based on the switch state."""
+        if not self._available:
+            return "mdi:lightning-bolt-off"
+        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
+
+class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
+    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the switch."""
+        super().__init__(client, name, device_info, device_unique_id)
+        self._attr_icon = "mdi:check-decagram"
+        self._register = REG_BALANCING_EXTERNAL_CURRENT
+
+    @property
+    def name(self):
+        """Return the name of the switch."""
+        return "Balancing External Current"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_balancing_external_current_switch"
         
     @property
     def icon(self):

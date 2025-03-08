@@ -32,6 +32,12 @@ DEFAULT_READ_ONLY = False
 # Global station registers (not connector-specific)
 REG_LED_PWM = 5008             # LED PWM value (global station setting)
 REG_MAX_STATION_CURRENT = 5006  # Global maximum station current (for the entire wallbox)
+REG_AUTOMATIC = 5003           # If set to 1, charging starts automatically after car connection
+REG_AUTOMATIC_DIPSWITCH_ON = 5004  # If set to 1, automatic mode is driven by dipSwitch state
+REG_MAX_CURRENT_DIPSWITCH_ON = 5005  # If set to 1, max current controlled by DIPSWITCH, 0 - controlled by 5006
+REG_BALANCING_EXTERNAL_CURRENT = 5007  # If set to 1, controlled by external LOCAL wattmeter
+REG_RS485_ID = 5023            # Slave modbus ID (0-16)
+REG_WATTMETER_MODE = 5024      # 0 = Olife internal(default), 1 = ORNO WE516
 
 # Connector A Registers (2000-2026, 4000-4019)
 # EVSE-A registers

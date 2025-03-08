@@ -26,6 +26,8 @@ from .const import (
     REG_CURRENT_LIMIT_B,
     REG_LED_PWM,
     REG_MAX_STATION_CURRENT,
+    REG_RS485_ID,
+    REG_WATTMETER_MODE,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -58,10 +60,15 @@ async def async_setup_entry(
             sw_version="1.0",  # You can update this with actual firmware version if available
         )
         
+        read_only = entry.options.get(CONF_READ_ONLY, DEFAULT_READ_ONLY)
+        
         entities = [
             OlifeWallboxCurrentLimit(client, name, device_info, device_unique_id),
             OlifeWallboxLedPwm(client, name, device_info, device_unique_id),
             OlifeWallboxMaxStationCurrent(client, name, device_info, device_unique_id),
+            # Add new global number entities
+            OlifeWallboxRS485ID(client, name, device_info, device_unique_id),
+            OlifeWallboxWattmeterMode(client, name, device_info, device_unique_id),
         ]
         
         async_add_entities(entities)
@@ -399,6 +406,224 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             if self._should_log_error():
                 _LOGGER.error(
                     "Error updating max station current: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
+
+class OlifeWallboxRS485ID(OlifeWallboxNumberBase):
+    """Number entity for RS485 ID setting."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the number entity."""
+        super().__init__(client, name, device_info, device_unique_id)
+        
+    @property
+    def name(self):
+        """Return the name of the number entity."""
+        return "RS485 Modbus ID"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_rs485_id"
+        
+    @property
+    def native_value(self):
+        """Return the value reported by the number entity."""
+        return self._value
+        
+    @property
+    def native_min_value(self):
+        """Return the minimum value."""
+        return 0
+        
+    @property
+    def native_max_value(self):
+        """Return the maximum value."""
+        return 16
+        
+    @property
+    def native_step(self):
+        """Return the step value."""
+        return 1
+        
+    async def async_set_native_value(self, value):
+        """Set the value of the entity."""
+        if not self._available:
+            _LOGGER.warning("Cannot set RS485 ID: Device unavailable")
+            raise HomeAssistantError("Cannot set RS485 ID: Device unavailable")
+            
+        try:
+            _LOGGER.debug("Setting RS485 ID to: %s (type: %s)", value, type(value))
+            # Ensure value is an integer
+            scaled_value = int(round(float(value)))
+            _LOGGER.debug("Converted RS485 ID value to integer: %s", scaled_value)
+            
+            # Ensure value is within valid range
+            if scaled_value < 0:
+                scaled_value = 0
+                _LOGGER.warning("RS485 ID value below minimum, setting to 0")
+            elif scaled_value > 16:
+                scaled_value = 16
+                _LOGGER.warning("RS485 ID value above maximum, setting to 16")
+            
+            if await self._client.write_register(REG_RS485_ID, scaled_value):
+                self._value = value
+                self._error_count = 0
+                _LOGGER.info("RS485 ID set to: %s", value)
+                self.async_write_ha_state()
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Failed to set RS485 ID to %s (error count: %s)",
+                        value, self._error_count
+                    )
+                raise HomeAssistantError(f"Failed to set RS485 ID to {value}")
+        except Exception as ex:
+            self._error_count += 1
+            if self._should_log_error():
+                _LOGGER.error(
+                    "Error setting RS485 ID to %s: %s (error count: %s)",
+                    value, ex, self._error_count
+                )
+            raise HomeAssistantError(f"Error setting RS485 ID: {ex}")
+            
+    async def async_update(self):
+        """Update the state of the entity."""
+        try:
+            result = await self._client.read_holding_registers(REG_RS485_ID, 1)
+            if result is not None:
+                self._available = True
+                self._value = result[0]
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read RS485 ID (error count: %s)",
+                        self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            if self._should_log_error():
+                _LOGGER.error(
+                    "Error updating RS485 ID: %s (error count: %s)",
+                    ex, self._error_count
+                )
+            self._available = False
+
+class OlifeWallboxWattmeterMode(OlifeWallboxNumberBase):
+    """Number entity for Wattmeter Mode setting."""
+
+    def __init__(self, client, name, device_info, device_unique_id):
+        """Initialize the number entity."""
+        super().__init__(client, name, device_info, device_unique_id)
+        
+    @property
+    def name(self):
+        """Return the name of the number entity."""
+        return "Wattmeter Mode"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_wattmeter_mode"
+        
+    @property
+    def native_value(self):
+        """Return the value reported by the number entity."""
+        return self._value
+        
+    @property
+    def native_min_value(self):
+        """Return the minimum value."""
+        return 0
+        
+    @property
+    def native_max_value(self):
+        """Return the maximum value."""
+        return 1
+        
+    @property
+    def native_step(self):
+        """Return the step value."""
+        return 1
+        
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        attributes = {}
+        if self._value == 0:
+            attributes["mode"] = "Olife internal (default)"
+        elif self._value == 1:
+            attributes["mode"] = "ORNO WE516"
+        return attributes
+        
+    async def async_set_native_value(self, value):
+        """Set the value of the entity."""
+        if not self._available:
+            _LOGGER.warning("Cannot set Wattmeter Mode: Device unavailable")
+            raise HomeAssistantError("Cannot set Wattmeter Mode: Device unavailable")
+            
+        try:
+            _LOGGER.debug("Setting Wattmeter Mode to: %s (type: %s)", value, type(value))
+            # Ensure value is an integer
+            scaled_value = int(round(float(value)))
+            _LOGGER.debug("Converted Wattmeter Mode value to integer: %s", scaled_value)
+            
+            # Ensure value is within valid range
+            if scaled_value < 0:
+                scaled_value = 0
+                _LOGGER.warning("Wattmeter Mode value below minimum, setting to 0")
+            elif scaled_value > 1:
+                scaled_value = 1
+                _LOGGER.warning("Wattmeter Mode value above maximum, setting to 1")
+            
+            if await self._client.write_register(REG_WATTMETER_MODE, scaled_value):
+                self._value = value
+                self._error_count = 0
+                _LOGGER.info("Wattmeter Mode set to: %s", value)
+                self.async_write_ha_state()
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.error(
+                        "Failed to set Wattmeter Mode to %s (error count: %s)",
+                        value, self._error_count
+                    )
+                raise HomeAssistantError(f"Failed to set Wattmeter Mode to {value}")
+        except Exception as ex:
+            self._error_count += 1
+            if self._should_log_error():
+                _LOGGER.error(
+                    "Error setting Wattmeter Mode to %s: %s (error count: %s)",
+                    value, ex, self._error_count
+                )
+            raise HomeAssistantError(f"Error setting Wattmeter Mode: {ex}")
+            
+    async def async_update(self):
+        """Update the state of the entity."""
+        try:
+            result = await self._client.read_holding_registers(REG_WATTMETER_MODE, 1)
+            if result is not None:
+                self._available = True
+                self._value = result[0]
+                self._error_count = 0
+            else:
+                self._error_count += 1
+                if self._should_log_error():
+                    _LOGGER.warning(
+                        "Failed to read Wattmeter Mode (error count: %s)",
+                        self._error_count
+                    )
+                self._available = False
+        except Exception as ex:
+            self._error_count += 1
+            if self._should_log_error():
+                _LOGGER.error(
+                    "Error updating Wattmeter Mode: %s (error count: %s)",
                     ex, self._error_count
                 )
             self._available = False 
