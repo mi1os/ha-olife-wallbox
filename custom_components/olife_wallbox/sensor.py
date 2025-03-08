@@ -220,13 +220,15 @@ async def async_setup_entry(
             # Get the number of connectors and determine which ones to use
             connectors_in_use = device_info.get("connectors_in_use", ["B"])
             
-            # Initialize data structure for each connector (both numerical and letter based)
-            data["connector_1"] = {}
+            # Initialize data structure for each connector
+            # IMPORTANT: We use letter-based naming convention for connectors:
+            # - connector_A: left side connector (formerly known as connector_1)
+            # - connector_B: right side connector (formerly known as connector_2)
+            # This standardization reduces confusion and matches physical labeling.
             data["connector_A"] = {}
             
             if "B" in connectors_in_use or num_connectors == 1:
-                # For single-connector or B-enabled setups, create connector_2/connector_B data
-                data["connector_2"] = {}
+                # For single-connector or B-enabled setups, create connector_B data
                 data["connector_B"] = {}
             
             # For single-connector Wallboxes, we always use the B connector registers (right side)
@@ -238,50 +240,36 @@ async def async_setup_entry(
                 max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT_B, 1)
                 led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
                 
-                # Store in both connector_1/connector_A and connector_2/connector_B for compatibility
+                # Store in both connector_A and connector_B for compatibility
                 if wallbox_ev_state is not None:
-                    data["connector_1"]["wallbox_ev_state"] = wallbox_ev_state[0]
-                    data["connector_2"]["wallbox_ev_state"] = wallbox_ev_state[0]
                     data["connector_A"]["wallbox_ev_state"] = wallbox_ev_state[0]
                     data["connector_B"]["wallbox_ev_state"] = wallbox_ev_state[0]
                 
                 if current_limit is not None:
-                    data["connector_1"]["current_limit"] = current_limit[0]
-                    data["connector_2"]["current_limit"] = current_limit[0]
                     data["connector_A"]["current_limit"] = current_limit[0]
                     data["connector_B"]["current_limit"] = current_limit[0]
                 
                 if charge_current is not None:
-                    data["connector_1"]["charge_current"] = charge_current[0]
-                    data["connector_2"]["charge_current"] = charge_current[0]
                     data["connector_A"]["charge_current"] = charge_current[0]
                     data["connector_B"]["charge_current"] = charge_current[0]
                 
                 if max_station_current is not None:
-                    data["connector_1"]["max_station_current"] = max_station_current[0]
-                    data["connector_2"]["max_station_current"] = max_station_current[0]
                     data["connector_A"]["max_station_current"] = max_station_current[0]
                     data["connector_B"]["max_station_current"] = max_station_current[0]
                 
                 if led_pwm is not None:
-                    data["connector_1"]["led_pwm"] = led_pwm[0]
-                    data["connector_2"]["led_pwm"] = led_pwm[0]
                     data["connector_A"]["led_pwm"] = led_pwm[0]
                     data["connector_B"]["led_pwm"] = led_pwm[0]
                 
                 # Read total energy (as charge energy)
                 energy_sum = await client.read_holding_registers(REG_ENERGY_SUM_B, 1)
                 if energy_sum is not None:
-                    data["connector_1"]["charge_energy"] = energy_sum[0]
-                    data["connector_2"]["charge_energy"] = energy_sum[0]
                     data["connector_A"]["charge_energy"] = energy_sum[0]
                     data["connector_B"]["charge_energy"] = energy_sum[0]
                 
                 # Read power of phase 1 (as charge power for simplicity)
                 power_l1 = await client.read_holding_registers(REG_POWER_L1_B, 1)
                 if power_l1 is not None:
-                    data["connector_1"]["charge_power"] = power_l1[0]
-                    data["connector_2"]["charge_power"] = power_l1[0]
                     data["connector_A"]["charge_power"] = power_l1[0]
                     data["connector_B"]["charge_power"] = power_l1[0]
                 
@@ -289,8 +277,6 @@ async def async_setup_entry(
                 energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM_B, 2)
                 if energy_sum_extended is not None and len(energy_sum_extended) >= 2:
                     energy_sum_value = energy_sum_extended[0] + (energy_sum_extended[1] << 16)
-                    data["connector_1"]["energy_sum"] = energy_sum_value
-                    data["connector_2"]["energy_sum"] = energy_sum_value
                     data["connector_A"]["energy_sum"] = energy_sum_value
                     data["connector_B"]["energy_sum"] = energy_sum_value
                 
@@ -303,20 +289,14 @@ async def async_setup_entry(
                     
                     # Store in both connector data structures
                     if error_code is not None:
-                        data["connector_1"]["error_code"] = error_code[0]
-                        data["connector_2"]["error_code"] = error_code[0]
                         data["connector_A"]["error_code"] = error_code[0]
                         data["connector_B"]["error_code"] = error_code[0]
                     
                     if cp_state is not None:
-                        data["connector_1"]["cp_state"] = cp_state[0]
-                        data["connector_2"]["cp_state"] = cp_state[0]
                         data["connector_A"]["cp_state"] = cp_state[0]
                         data["connector_B"]["cp_state"] = cp_state[0]
                     
                     if prev_cp_state is not None:
-                        data["connector_1"]["prev_cp_state"] = prev_cp_state[0]
-                        data["connector_2"]["prev_cp_state"] = prev_cp_state[0]
                         data["connector_A"]["prev_cp_state"] = prev_cp_state[0]
                         data["connector_B"]["prev_cp_state"] = prev_cp_state[0]
                 
@@ -330,8 +310,6 @@ async def async_setup_entry(
                         power_val = await client.read_holding_registers(power_reg, 1)
                         if power_val is not None:
                             key = f"power_l{phase_num}"
-                            data["connector_1"][key] = power_val[0]
-                            data["connector_2"][key] = power_val[0]
                             data["connector_A"][key] = power_val[0]
                             data["connector_B"][key] = power_val[0]
                             _LOGGER.debug("Read power for phase %s: %s W", phase_num, power_val[0])
@@ -342,8 +320,6 @@ async def async_setup_entry(
                         current_val = await client.read_holding_registers(current_reg, 1)
                         if current_val is not None:
                             key = f"current_l{phase_num}"
-                            data["connector_1"][key] = current_val[0]
-                            data["connector_2"][key] = current_val[0]
                             data["connector_A"][key] = current_val[0]
                             data["connector_B"][key] = current_val[0]
                             _LOGGER.debug("Read current for phase %s: %s mA", phase_num, current_val[0])
@@ -354,8 +330,6 @@ async def async_setup_entry(
                         voltage_val = await client.read_holding_registers(voltage_reg, 1)
                         if voltage_val is not None:
                             key = f"voltage_l{phase_num}"
-                            data["connector_1"][key] = voltage_val[0]
-                            data["connector_2"][key] = voltage_val[0]
                             data["connector_A"][key] = voltage_val[0]
                             data["connector_B"][key] = voltage_val[0]
                             _LOGGER.debug("Read voltage for phase %s: %s (0.1V)", phase_num, voltage_val[0])
@@ -367,8 +341,6 @@ async def async_setup_entry(
                         if energy_val is not None and len(energy_val) >= 2:
                             energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                             key = f"energy_l{phase_num}"
-                            data["connector_1"][key] = energy_val_32bit
-                            data["connector_2"][key] = energy_val_32bit
                             data["connector_A"][key] = energy_val_32bit
                             data["connector_B"][key] = energy_val_32bit
                             _LOGGER.debug("Read energy for phase %s: %s mWh", phase_num, energy_val_32bit)
@@ -386,23 +358,18 @@ async def async_setup_entry(
                     
                     # Store values for connector A
                     if wallbox_ev_state_a is not None:
-                        data["connector_1"]["wallbox_ev_state"] = wallbox_ev_state_a[0]
                         data["connector_A"]["wallbox_ev_state"] = wallbox_ev_state_a[0]
                     
                     if current_limit_a is not None:
-                        data["connector_1"]["current_limit"] = current_limit_a[0]
                         data["connector_A"]["current_limit"] = current_limit_a[0]
                     
                     if charge_current_a is not None:
-                        data["connector_1"]["charge_current"] = charge_current_a[0]
                         data["connector_A"]["charge_current"] = charge_current_a[0]
                     
                     if max_station_current_a is not None:
-                        data["connector_1"]["max_station_current"] = max_station_current_a[0]
                         data["connector_A"]["max_station_current"] = max_station_current_a[0]
                     
                     if led_pwm is not None:
-                        data["connector_1"]["led_pwm"] = led_pwm[0]
                         data["connector_A"]["led_pwm"] = led_pwm[0]
                     
                     # Similar logic for other A connector sensors...
@@ -416,23 +383,18 @@ async def async_setup_entry(
                     
                     # Store values for connector B
                     if wallbox_ev_state_b is not None:
-                        data["connector_2"]["wallbox_ev_state"] = wallbox_ev_state_b[0]
                         data["connector_B"]["wallbox_ev_state"] = wallbox_ev_state_b[0]
                     
                     if current_limit_b is not None:
-                        data["connector_2"]["current_limit"] = current_limit_b[0]
                         data["connector_B"]["current_limit"] = current_limit_b[0]
                     
                     if charge_current_b is not None:
-                        data["connector_2"]["charge_current"] = charge_current_b[0]
                         data["connector_B"]["charge_current"] = charge_current_b[0]
                     
                     if max_station_current_b is not None:
-                        data["connector_2"]["max_station_current"] = max_station_current_b[0]
                         data["connector_B"]["max_station_current"] = max_station_current_b[0]
                     
                     if led_pwm is not None:
-                        data["connector_2"]["led_pwm"] = led_pwm[0]
                         data["connector_B"]["led_pwm"] = led_pwm[0]
                     
                     # Similar logic for other B connector sensors...
@@ -451,7 +413,6 @@ async def async_setup_entry(
                             power_val = await client.read_holding_registers(power_reg, 1)
                             if power_val is not None:
                                 key = f"power_l{phase_num}"
-                                data["connector_1"][key] = power_val[0]
                                 data["connector_A"][key] = power_val[0]
                                 _LOGGER.debug("Read power for phase %s (connector A): %s W", phase_num, power_val[0])
                         
@@ -461,7 +422,6 @@ async def async_setup_entry(
                             current_val = await client.read_holding_registers(current_reg, 1)
                             if current_val is not None:
                                 key = f"current_l{phase_num}"
-                                data["connector_1"][key] = current_val[0]
                                 data["connector_A"][key] = current_val[0]
                                 _LOGGER.debug("Read current for phase %s (connector A): %s mA", phase_num, current_val[0])
                         
@@ -471,7 +431,6 @@ async def async_setup_entry(
                             voltage_val = await client.read_holding_registers(voltage_reg, 1)
                             if voltage_val is not None:
                                 key = f"voltage_l{phase_num}"
-                                data["connector_1"][key] = voltage_val[0]
                                 data["connector_A"][key] = voltage_val[0]
                                 _LOGGER.debug("Read voltage for phase %s (connector A): %s (0.1V)", phase_num, voltage_val[0])
                         
@@ -482,7 +441,6 @@ async def async_setup_entry(
                             if energy_val is not None and len(energy_val) >= 2:
                                 energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                                 key = f"energy_l{phase_num}"
-                                data["connector_1"][key] = energy_val_32bit
                                 data["connector_A"][key] = energy_val_32bit
                                 _LOGGER.debug("Read energy for phase %s (connector A): %s mWh", phase_num, energy_val_32bit)
                     
@@ -496,7 +454,6 @@ async def async_setup_entry(
                             power_val = await client.read_holding_registers(power_reg, 1)
                             if power_val is not None:
                                 key = f"power_l{phase_num}"
-                                data["connector_2"][key] = power_val[0]
                                 data["connector_B"][key] = power_val[0]
                                 _LOGGER.debug("Read power for phase %s (connector B): %s W", phase_num, power_val[0])
                         
@@ -506,7 +463,6 @@ async def async_setup_entry(
                             current_val = await client.read_holding_registers(current_reg, 1)
                             if current_val is not None:
                                 key = f"current_l{phase_num}"
-                                data["connector_2"][key] = current_val[0]
                                 data["connector_B"][key] = current_val[0]
                                 _LOGGER.debug("Read current for phase %s (connector B): %s mA", phase_num, current_val[0])
                         
@@ -516,7 +472,6 @@ async def async_setup_entry(
                             voltage_val = await client.read_holding_registers(voltage_reg, 1)
                             if voltage_val is not None:
                                 key = f"voltage_l{phase_num}"
-                                data["connector_2"][key] = voltage_val[0]
                                 data["connector_B"][key] = voltage_val[0]
                                 _LOGGER.debug("Read voltage for phase %s (connector B): %s (0.1V)", phase_num, voltage_val[0])
                         
@@ -527,7 +482,6 @@ async def async_setup_entry(
                             if energy_val is not None and len(energy_val) >= 2:
                                 energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                                 key = f"energy_l{phase_num}"
-                                data["connector_2"][key] = energy_val_32bit
                                 data["connector_B"][key] = energy_val_32bit
                                 _LOGGER.debug("Read energy for phase %s (connector B): %s mWh", phase_num, energy_val_32bit)
                 else:
@@ -556,12 +510,14 @@ async def async_setup_entry(
     entities = []
     
     # Create entity for each connector
+    connector_mapping = {1: "A", 2: "B"}  # Map from index to letter
     for connector_idx in range(1, num_connectors + 1):
-        connector_key = f"connector_{connector_idx}"
-        connector_name = f"{name}" if num_connectors == 1 else f"{name} Connector {connector_idx}"
+        connector_letter = connector_mapping[connector_idx]
+        connector_key = f"connector_{connector_letter}"
+        connector_name = f"{name}" if num_connectors == 1 else f"{name} Connector {connector_letter}"
         
         # Add a suffix to the device_unique_id if we have multiple connectors
-        connector_unique_id = device_unique_id if num_connectors == 1 else f"{device_unique_id}_connector_{connector_idx}"
+        connector_unique_id = device_unique_id if num_connectors == 1 else f"{device_unique_id}_connector_{connector_letter}"
         
         # Create a device_info object per connector
         connector_device_info = DeviceInfo(
@@ -779,20 +735,29 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         if not self.coordinator.data:
             return None
             
-        # Handle nested keys (e.g., "connector_1.wallbox_ev_state")
+        # Handle nested keys (e.g., "connector_A.wallbox_ev_state")
         if '.' in key:
             parts = key.split('.')
             data = self.coordinator.data
+            
+            # Convert legacy numerical connector keys to letter-based ones (connector_1 -> connector_A, connector_2 -> connector_B)
+            if parts[0].startswith("connector_") and parts[0] in ["connector_1", "connector_2"]:
+                connector_idx = int(parts[0].split("_")[1])
+                connector_letter = "A" if connector_idx == 1 else "B"
+                parts[0] = f"connector_{connector_letter}"
+                
+                # Log a deprecation warning when legacy keys are used
+                _LOGGER.debug("Legacy connector key %s used, converted to %s", key, '.'.join(parts))
             
             # Traverse the nested dictionary
             for part in parts:
                 if not isinstance(data, dict) or part not in data:
                     return None
                 data = data[part]
-                
+            
             return data
         else:
-            # Direct key
+            # Direct key - no conversion needed as we don't use bare connector_# keys
             return self.coordinator.data.get(key)
 
 class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
