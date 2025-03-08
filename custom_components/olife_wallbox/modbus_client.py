@@ -184,13 +184,6 @@ class OlifeWallboxModbusClient:
                     
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
-                    _LOGGER.debug(
-                        "Read register %s (count: %s) completed in %.3f seconds",
-                        address, count, elapsed
-                    )
-                    
-                    # Reset consecutive errors on success
-                    self._consecutive_errors = 0
                     
                     # Handle different types of errors
                     if isinstance(result, ExceptionResponse):
@@ -214,8 +207,19 @@ class OlifeWallboxModbusClient:
                             address, result
                         )
                         return None
-                        
-                    return result.registers
+                    
+                    # Log the register values in decimal and hex format
+                    register_values = result.registers
+                    hex_values = [f"0x{val:04X}" for val in register_values]
+                    _LOGGER.debug(
+                        "Read register %s (count: %s) completed in %.3f seconds. Values: %s (hex: %s)",
+                        address, count, elapsed, register_values, hex_values
+                    )
+                    
+                    # Reset consecutive errors on success
+                    self._consecutive_errors = 0
+                    
+                    return register_values
             except (ConnectionException, ModbusException) as ex:
                 self._consecutive_errors += 1
                 self._connected = False
