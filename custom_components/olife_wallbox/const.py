@@ -29,13 +29,15 @@ DEFAULT_ENABLE_MONTHLY_ENERGY = True
 DEFAULT_ENABLE_YEARLY_ENERGY = True
 DEFAULT_READ_ONLY = False
 
+# Global station registers (not connector-specific)
+REG_LED_PWM = 5008             # LED PWM value (global station setting)
+
 # Connector 1 Registers (2000-2026, 4000-4019)
 # EVSE-A registers
 REG_WALLBOX_EV_STATE = 2000    # Wallbox EV state
 REG_CHARGING_ENABLE = 2001     # Enable charging
 REG_VERIFY_USER = 2002         # Verify user
 REG_AUTOMATIC = 2003           # Automatic mode
-REG_LED_PWM = 5008             # LED PWM value
 REG_CURRENT_LIMIT = 2009       # Current limit in A
 REG_MAX_STATION_CURRENT = 2011 # Maximum station current in A
 REG_CHARGE_CURRENT = 2012      # Charging current in A
@@ -72,7 +74,6 @@ REG_WALLBOX_EV_STATE_2 = 2100  # Wallbox EV state (connector 2)
 REG_CHARGING_ENABLE_2 = 2101   # Enable charging (connector 2)
 REG_VERIFY_USER_2 = 2102       # Verify user (connector 2)
 REG_AUTOMATIC_2 = 2103         # Automatic mode (connector 2)
-REG_LED_PWM_2 = 5108           # LED PWM value (connector 2)
 REG_CURRENT_LIMIT_2 = 2109     # Current limit in A (connector 2)
 REG_MAX_STATION_CURRENT_2 = 2111 # Maximum station current in A (connector 2)
 REG_CHARGE_CURRENT_2 = 2112    # Charging current in A (connector 2)

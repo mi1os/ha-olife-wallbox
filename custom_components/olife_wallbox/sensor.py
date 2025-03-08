@@ -185,7 +185,7 @@ async def async_setup_entry(
             # Read max station current
             max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             
-            # Read LED PWM value
+            # Read LED PWM value (global setting for the station)
             led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
             
             # Read charge energy
@@ -312,9 +312,6 @@ async def async_setup_entry(
                 current_limit_2 = await client.read_holding_registers(REG_CURRENT_LIMIT_2, 1)
                 charge_current_2 = await client.read_holding_registers(REG_CHARGE_CURRENT_2, 1)
                 max_station_current_2 = await client.read_holding_registers(REG_MAX_STATION_CURRENT_2, 1)
-                led_pwm_2 = await client.read_holding_registers(REG_LED_PWM_2, 1)
-                charge_energy_2 = await client.read_holding_registers(REG_CHARGE_ENERGY_2, 1)
-                charge_power_2 = await client.read_holding_registers(REG_CHARGE_POWER_2, 1)
                 
                 if wallbox_ev_state_2 is not None:
                     data["connector_2"]["wallbox_ev_state"] = wallbox_ev_state_2[0]
@@ -327,13 +324,17 @@ async def async_setup_entry(
                     
                 if max_station_current_2 is not None:
                     data["connector_2"]["max_station_current"] = max_station_current_2[0]
-                    
-                if led_pwm_2 is not None:
-                    data["connector_2"]["led_pwm"] = led_pwm_2[0]
-                    
+                
+                # Use the same LED PWM value for connector 2 (it's a global setting)
+                if led_pwm is not None:
+                    data["connector_2"]["led_pwm"] = led_pwm[0]
+                
+                charge_energy_2 = await client.read_holding_registers(REG_CHARGE_ENERGY_2, 1)
+                charge_power_2 = await client.read_holding_registers(REG_CHARGE_POWER_2, 1)
+                
                 if charge_energy_2 is not None:
                     data["connector_2"]["charge_energy"] = charge_energy_2[0]
-                    
+                
                 if charge_power_2 is not None:
                     data["connector_2"]["charge_power"] = charge_power_2[0]
                 

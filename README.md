@@ -94,7 +94,7 @@ For dual connector installations, entities are created for each connector and cl
 - **Automatic Mode Switch**: Toggle automatic mode
 - **Current Limit**: Set the charging current limit (0-32A)
 - **Maximum Station Current**: Set the maximum station current (0-63A)
-- **LED Brightness**: Set the LED brightness (0-1000)
+- **LED Brightness**: Set the LED brightness level (0-1000) - global setting for the entire station
 
 ## Available Services
 
