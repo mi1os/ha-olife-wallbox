@@ -110,8 +110,8 @@ from .const import (
     REG_EXT_ENERGY_L1,
     REG_EXT_ENERGY_L2,
     REG_EXT_ENERGY_L3,
-    REG_EXT_ENERGY_SUM,
-    REG_EXT_ENERGY_FLASH,
+    REG_EXT_ENERGY_TOTAL,
+    REG_EXT_ENERGY_SAVED_FLASH,
     REG_EXT_POWER_L1,
     REG_EXT_POWER_L2,
     REG_EXT_POWER_L3,
@@ -122,8 +122,6 @@ from .const import (
     REG_EXT_VOLTAGE_L1,
     REG_EXT_VOLTAGE_L2,
     REG_EXT_VOLTAGE_L3,
-    REG_EXT_ENERGY_TOTAL,
-    REG_EXT_ENERGY_SAVED_FLASH,
 )
 from .modbus_client import OlifeWallboxModbusClient
 
@@ -492,8 +490,16 @@ async def async_setup_entry(
                         data["connector_A"]["saved_energy_ext"] = saved_energy_32bit
                         data["connector_B"]["saved_energy_ext"] = saved_energy_32bit
                         _LOGGER.debug("Read saved energy from external wattmeter: %s mWh", saved_energy_32bit)
+                        
+                    # Read total power
+                    total_power = await client.read_holding_registers(REG_EXT_POWER_SUM, 1)
+                    if total_power is not None:
+                        # Store in both connector data structures since it's an external meter
+                        data["connector_A"]["power_sum"] = total_power[0]
+                        data["connector_B"]["power_sum"] = total_power[0]
+                        _LOGGER.debug("Read total power from external wattmeter: %s W", total_power[0])
                 except Exception as ex:
-                    _LOGGER.error("Error reading total/saved energy from external wattmeter: %s", ex)
+                    _LOGGER.error("Error reading additional data from external wattmeter: %s", ex)
             
             return data
         except Exception as exception:
