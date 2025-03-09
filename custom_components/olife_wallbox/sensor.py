@@ -566,20 +566,6 @@ async def async_setup_entry(
                 connector_device_info, 
                 f"{connector_unique_id}_current_limit"
             ),
-            OlifeWallboxMaxStationCurrentSensor(
-                coordinator, 
-                connector_name, 
-                f"{connector_key}.max_station_current", 
-                connector_device_info, 
-                f"{connector_unique_id}_max_station_current"
-            ),
-            OlifeWallboxLedPwmSensor(
-                coordinator, 
-                connector_name, 
-                f"{connector_key}.led_pwm", 
-                connector_device_info, 
-                f"{connector_unique_id}_led_pwm"
-            ),
             OlifeWallboxChargeCurrentSensor(
                 coordinator, 
                 connector_name, 
@@ -860,42 +846,6 @@ class OlifeWallboxCurrentLimitSensor(OlifeWallboxSensor):
     def device_class(self):
         """Return the device class of the sensor."""
         return SensorDeviceClass.CURRENT
-
-class OlifeWallboxMaxStationCurrentSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox maximum station current."""
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return "Max Station Current"
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        return self._get_value_from_data()
-
-    @property
-    def native_unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return UnitOfElectricCurrent.AMPERE
-
-    @property
-    def device_class(self):
-        """Return the device class of the sensor."""
-        return SensorDeviceClass.CURRENT
-
-class OlifeWallboxLedPwmSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox LED PWM."""
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return "LED PWM"
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        return self._get_value_from_data()
 
 class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox charge current."""

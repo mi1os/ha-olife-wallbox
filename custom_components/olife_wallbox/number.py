@@ -333,7 +333,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     @property
     def name(self):
         """Return the name of the entity."""
-        return "Cable Current Limit"
+        return "Max Station Current"
         
     @property
     def unique_id(self):

@@ -7,8 +7,13 @@ import time
 from typing import Optional, List, Union
 
 from pymodbus.client import ModbusTcpClient
-from pymodbus.exceptions import ConnectionException, ModbusException
+from pymodbus.exceptions import ConnectionException, ModbusException, ModbusIOException
 from pymodbus.pdu import ExceptionResponse
+
+from .const import (
+    REG_LED_PWM,
+    REG_MAX_STATION_CURRENT
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +61,9 @@ class OlifeWallboxModbusClient:
         self._connection_errors = 0
         self._consecutive_errors = 0
         self._last_successful_connection = datetime.min
+        
+        # Initialize register cache
+        self._register_cache = {}
 
     async def connect(self):
         """Connect to the Modbus device with retry logic."""
@@ -166,6 +174,15 @@ class OlifeWallboxModbusClient:
 
     async def read_holding_registers(self, address, count) -> Optional[List[int]]:
         """Read holding registers with retry mechanism."""
+        # Add a small cache for frequently accessed registers
+        cache_key = f"{address}_{count}"
+        if hasattr(self, '_register_cache') and cache_key in self._register_cache:
+            cache_entry = self._register_cache[cache_key]
+            # Only use cache for certain registers and if the cache is fresh (< 10 seconds old)
+            if address in [REG_LED_PWM, REG_MAX_STATION_CURRENT] and \
+               (datetime.now() - cache_entry['timestamp']).total_seconds() < 10:
+                return cache_entry['value']
+        
         for retry in range(MAX_RETRIES):
             if not await self.connect():
                 if retry < MAX_RETRIES - 1:
@@ -236,6 +253,15 @@ class OlifeWallboxModbusClient:
                     
                     # Reset consecutive errors on success
                     self._consecutive_errors = 0
+                    
+                    # Cache the result for specific registers
+                    if address in [REG_LED_PWM, REG_MAX_STATION_CURRENT]:
+                        if not hasattr(self, '_register_cache'):
+                            self._register_cache = {}
+                        self._register_cache[cache_key] = {
+                            'timestamp': datetime.now(),
+                            'value': register_values
+                        }
                     
                     return register_values
             except (ConnectionException, ModbusException) as ex:
