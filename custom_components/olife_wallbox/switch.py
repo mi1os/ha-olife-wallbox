@@ -71,13 +71,11 @@ async def async_setup_entry(
             return
             
         entities = [
-            OlifeWallboxChargingSwitch(client, name, device_info, device_unique_id),
-            OlifeWallboxVerifyUserSwitch(client, name, device_info, device_unique_id),
-            OlifeWallboxAutomaticSwitch(client, name, device_info, device_unique_id),
-            # Add new global switches
-            OlifeWallboxAutomaticGlobalSwitch(client, name, device_info, device_unique_id),
-            OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),
-            OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),
+            OlifeWallboxChargingSwitch(client, name, device_info, device_unique_id),  # Main charging control
+            OlifeWallboxVerifyUserSwitch(client, name, device_info, device_unique_id),  # User verification
+            OlifeWallboxAutomaticGlobalSwitch(client, name, device_info, device_unique_id),  # Automatic mode (main control)
+            OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),  # Automatic mode dipswitch control
+            OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),  # Max current dipswitch control
             OlifeWallboxBalancingExternalCurrentSwitch(client, name, device_info, device_unique_id),
         ]
         
@@ -278,34 +276,8 @@ class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
             return "mdi:check-decagram-outline"
         return "mdi:check-decagram" if self._is_on else "mdi:check-decagram-outline"
 
-class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox."""
-
-    def __init__(self, client, name, device_info, device_unique_id):
-        """Initialize the switch."""
-        super().__init__(client, name, device_info, device_unique_id)
-        self._register = REG_AUTOMATIC_A if "A" in device_unique_id else REG_AUTOMATIC_B
-        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
-        
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return "Automatic Mode"
-        
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        return f"{self._device_unique_id}_automatic_switch"
-        
-    @property
-    def icon(self):
-        """Return the icon to use in the frontend based on the switch state."""
-        if not self._available:
-            return "mdi:lightning-bolt-off"
-        return "mdi:lightning-bolt" if self._is_on else "mdi:lightning-bolt-off"
-
 class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
-    """Switch for Olife Energy Wallbox automatic mode global setting."""
+    """Switch for Olife Energy Wallbox automatic mode setting (global register 5003)."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
@@ -327,7 +299,7 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
     @property
     def name(self):
         """Return the name of the switch."""
-        return "Automatic Mode Global"
+        return "Automatic Mode"
         
     @property
     def unique_id(self):
@@ -337,7 +309,7 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
     @property
     def entity_registry_enabled_default(self) -> bool:
         """Return if the entity should be enabled when first added to the entity registry."""
-        return False  # Disabled by default as this might not be supported on all models
+        return True  # Enable by default as this is the main automatic mode control
         
     @property
     def icon(self):
