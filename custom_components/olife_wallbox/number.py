@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 
 from .const import (
     DOMAIN,
@@ -26,13 +27,12 @@ from .const import (
     REG_CURRENT_LIMIT_B,
     REG_LED_PWM,
     REG_MAX_STATION_CURRENT,
+    CONF_SCAN_INTERVAL,
+    ERROR_LOG_THRESHOLD
 )
 from .modbus_client import OlifeWallboxModbusClient
 
 _LOGGER = logging.getLogger(__name__)
-
-# Error count threshold for reducing log spam
-ERROR_LOG_THRESHOLD = 10
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -108,12 +108,13 @@ class OlifeWallboxNumberBase(NumberEntity):
         return self._error_count == 1 or self._error_count % ERROR_LOG_THRESHOLD == 0
 
 class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
-    """Number entity to control current limit on Olife Energy Wallbox (actual set current)."""
+    """Number entity to control current limit on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
+        self._attr_entity_category = None  # Main control, visible on main page
 
     @property
     def name(self):
@@ -224,6 +225,7 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:led-outline"
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
 
     @property
     def name(self):
@@ -323,12 +325,13 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
             self._available = False
 
 class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
-    """Entity to display the PP current limit (read-only, determined by the cable)."""
+    """Entity to display the max station current."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
 
     @property
     def name(self):

@@ -29,7 +29,7 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.event import async_track_time_change, async_track_point_in_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
@@ -122,13 +122,11 @@ from .const import (
     REG_EXT_VOLTAGE_L1,
     REG_EXT_VOLTAGE_L2,
     REG_EXT_VOLTAGE_L3,
+    ERROR_LOG_THRESHOLD
 )
 from .modbus_client import OlifeWallboxModbusClient
 
 _LOGGER = logging.getLogger(__name__)
-
-# Error count threshold for reducing log spam
-ERROR_LOG_THRESHOLD = 10
 
 def start_of_local_month() -> datetime:
     """Return a datetime object representing the start of the current month."""
@@ -516,8 +514,11 @@ async def async_setup_entry(
     )
 
     # Fetch initial data so we have data when entities initialize
-    await coordinator.async_config_entry_first_refresh()
-    
+    try:
+        await coordinator.async_refresh()
+    except Exception as ex:
+        _LOGGER.warning("Error during initial refresh: %s", ex)
+
     # Store the coordinator in the hass data
     hass.data[DOMAIN][entry.entry_id]["coordinator"] = coordinator
 
@@ -585,7 +586,8 @@ async def async_setup_entry(
                 connector_name, 
                 f"{connector_key}.charge_power", 
                 connector_device_info, 
-                f"{connector_unique_id}_charge_power"
+                f"{connector_unique_id}_charge_power",
+                connector_idx
             )
         ])
         
@@ -762,6 +764,7 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._raw_state = None
         self._error_count = 0
+        self._attr_entity_category = None  # Keep on main screen
         
     def _should_log_error(self):
         """Determine whether to log an error based on error count."""
@@ -854,22 +857,27 @@ class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
     def name(self):
         """Return the name of the sensor."""
         return "Charge Current"
-
+        
+    @property
+    def entity_category(self):
+        """Return the entity category."""
+        return None  # Main display
+        
     @property
     def native_value(self):
         """Return the state of the sensor."""
         return self._get_value_from_data()
-
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return UnitOfElectricCurrent.AMPERE
-
+    
     @property
     def device_class(self):
         """Return the device class of the sensor."""
         return SensorDeviceClass.CURRENT
-
+    
     @property
     def state_class(self):
         """Return the state class of the sensor."""
@@ -882,22 +890,27 @@ class OlifeWallboxChargeEnergySensor(OlifeWallboxSensor):
     def name(self):
         """Return the name of the sensor."""
         return "Charge Energy"
-
+        
+    @property
+    def entity_category(self):
+        """Return the entity category."""
+        return None  # Main display
+        
     @property
     def native_value(self):
         """Return the state of the sensor."""
         return self._get_value_from_data()
-
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return UnitOfEnergy.WATT_HOUR
-
+    
     @property
     def device_class(self):
         """Return the device class of the sensor."""
         return SensorDeviceClass.ENERGY
-
+    
     @property
     def state_class(self):
         """Return the state class of the sensor."""
@@ -905,31 +918,47 @@ class OlifeWallboxChargeEnergySensor(OlifeWallboxSensor):
 
 class OlifeWallboxChargePowerSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox charge power."""
-
+    
+    def __init__(self, coordinator, name, key, device_info, device_unique_id, connector_idx=None):
+        """Initialize the sensor."""
+        super().__init__(coordinator, name, key, device_info, device_unique_id)
+        # Store connector_idx if needed for future use
+        self._connector_idx = connector_idx
+    
     @property
     def name(self):
         """Return the name of the sensor."""
         return "Charge Power"
-
+        
+    @property
+    def entity_category(self):
+        """Return the entity category."""
+        return None  # Main display
+        
     @property
     def native_value(self):
         """Return the state of the sensor."""
         return self._get_value_from_data()
-
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return UnitOfPower.WATT
-
+    
     @property
     def device_class(self):
         """Return the device class of the sensor."""
         return SensorDeviceClass.POWER
-
+    
     @property
     def state_class(self):
         """Return the state class of the sensor."""
         return SensorStateClass.MEASUREMENT
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:flash"
 
 class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
     """Sensor for Olife Energy Wallbox daily charge energy."""
@@ -1367,13 +1396,14 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         self.async_write_ha_state() 
 
 class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox CP (Control Pilot) state."""
+    """Sensor for Olife Energy Wallbox CP state."""
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._raw_state = None
         self._error_count = 0
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
         
     def _should_log_error(self):
         """Determine whether to log an error based on error count."""
@@ -1437,11 +1467,12 @@ class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
         return None
 
 class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox error code."""
+    """Sensor for Olife Energy Wallbox error codes."""
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
         
     @property
     def name(self):
@@ -1507,14 +1538,13 @@ class OlifeWallboxPhasePowerSensor(OlifeWallboxSensor):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._phase_num = phase_num
-        self._attr_device_class = SensorDeviceClass.POWER
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
+    
     @property
     def name(self):
         """Return the name of the sensor."""
         return f"Phase {self._phase_num} Power"
-
+        
     @property
     def native_value(self):
         """Return the phase power in Watts."""
@@ -1522,11 +1552,21 @@ class OlifeWallboxPhasePowerSensor(OlifeWallboxSensor):
             return None
             
         return self._get_value_from_data()
-            
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return UnitOfPower.WATT
+    
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return SensorDeviceClass.POWER
+    
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        return SensorStateClass.MEASUREMENT
         
     @property
     def icon(self):
@@ -1540,31 +1580,39 @@ class OlifeWallboxPhaseCurrentSensor(OlifeWallboxSensor):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._phase_num = phase_num
-        self._attr_device_class = SensorDeviceClass.CURRENT
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
+    
     @property
     def name(self):
         """Return the name of the sensor."""
         return f"Phase {self._phase_num} Current"
-
+        
     @property
     def native_value(self):
-        """Return the phase current in Amps (converting from mA)."""
+        """Return the phase current in Amperes."""
         if not self.available:
             return None
             
-        milliamps = self._get_value_from_data()
-        if milliamps is None:
-            return None
-            
-        # Convert from mA to A
-        return round(milliamps / 1000.0, 2)
-            
+        # Current is reported in mA, convert to A
+        current_ma = self._get_value_from_data()
+        if current_ma is not None:
+            return current_ma / 1000.0
+        return None
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return UnitOfElectricCurrent.AMPERE
+    
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return SensorDeviceClass.CURRENT
+    
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        return SensorStateClass.MEASUREMENT
         
     @property
     def icon(self):
@@ -1578,36 +1626,44 @@ class OlifeWallboxPhaseVoltageSensor(OlifeWallboxSensor):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._phase_num = phase_num
-        self._attr_device_class = SensorDeviceClass.VOLTAGE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
+    
     @property
     def name(self):
         """Return the name of the sensor."""
         return f"Phase {self._phase_num} Voltage"
-
+        
     @property
     def native_value(self):
-        """Return the phase voltage in Volts (converting from decivolts)."""
+        """Return the phase voltage in Volts."""
         if not self.available:
             return None
             
-        decivolts = self._get_value_from_data()
-        if decivolts is None:
-            return None
-            
-        # Convert from 0.1V to V
-        return round(decivolts / 10.0, 1)
-            
+        # Voltage is reported in decivolts, convert to V
+        voltage_dv = self._get_value_from_data()
+        if voltage_dv is not None:
+            return voltage_dv / 10.0
+        return None
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
         return "V"
+    
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return SensorDeviceClass.VOLTAGE
+    
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        return SensorStateClass.MEASUREMENT
         
     @property
     def icon(self):
         """Return the icon to use in the frontend."""
-        return "mdi:lightning-bolt"
+        return "mdi:sine-wave"
 
 class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox phase energy."""
@@ -1616,39 +1672,41 @@ class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._phase_num = phase_num
-        self._attr_device_class = SensorDeviceClass.ENERGY
-        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-        
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab 
+    
     @property
     def name(self):
         """Return the name of the sensor."""
         return f"Phase {self._phase_num} Energy"
-
+        
     @property
     def native_value(self):
-        """Return the phase energy in kWh (converting from mWh)."""
+        """Return the phase energy in Watt-hours."""
         if not self.available:
             return None
             
-        milliwatthours = self._get_value_from_data()
-        if milliwatthours is None:
-            return None
-            
-        # Convert from mWh to kWh
-        return round(milliwatthours / 1000000.0, 3)
-            
+        # Energy is reported in mWh, convert to Wh
+        energy_mwh = self._get_value_from_data()
+        if energy_mwh is not None:
+            return energy_mwh / 1000.0
+        return None
+    
     @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement."""
-        return UnitOfEnergy.KILO_WATT_HOUR
+        return UnitOfEnergy.WATT_HOUR
+    
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return SensorDeviceClass.ENERGY
+    
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        return SensorStateClass.TOTAL_INCREASING
         
     @property
     def icon(self):
         """Return the icon to use in the frontend."""
-        return "mdi:lightning-bolt"
-        
-    @property
-    def last_reset(self):
-        """Return the time when the sensor was last reset."""
-        # This is a total_increasing sensor, so it's never reset
-        return None 
+        return "mdi:lightning-bolt" 

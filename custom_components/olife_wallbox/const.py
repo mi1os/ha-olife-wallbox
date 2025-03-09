@@ -29,6 +29,9 @@ DEFAULT_ENABLE_MONTHLY_ENERGY = True
 DEFAULT_ENABLE_YEARLY_ENERGY = True
 DEFAULT_READ_ONLY = False
 
+# Error count threshold for reducing log spam
+ERROR_LOG_THRESHOLD = 10
+
 # Global config registers (5000-5026)
 REG_AUTOMATIC = 5003               # 0/1, Automatic charging after car connection
 REG_AUTOMATIC_DIPSWITCH_ON = 5004  # 0/1, Automatic mode driven by dip switch state
