@@ -335,7 +335,8 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
-        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
+        self._attr_mode = "box"  # This helps mark it visually as read-only
 
     @property
     def name(self):
@@ -384,16 +385,18 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
         
     async def async_set_native_value(self, value):
         """This is a read-only entity, so this method should not be called."""
-        _LOGGER.warning("Cannot set PP current limit as it is read-only (determined by the cable)")
-        raise HomeAssistantError("PP current limit is read-only and determined by the charging cable")
+        _LOGGER.warning("Cannot set max station current as it is read-only")
+        raise HomeAssistantError("Max station current is read-only and determined by the device settings")
 
     async def async_update(self):
         """Update the state of the entity."""
         try:
+            # Use the correct register REG_MAX_STATION_CURRENT (5006)
             result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             if result is not None:
                 self._available = True
-                self._value = result[0]
+                # The value is in milliamps, convert to amps
+                self._value = result[0] / 1000
                 self._error_count = 0
             else:
                 self._error_count += 1
