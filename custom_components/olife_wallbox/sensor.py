@@ -305,11 +305,11 @@ async def async_setup_entry(
                     data["connector_A"]["charge_energy"] = energy_sum[0]
                     data["connector_B"]["charge_energy"] = energy_sum[0]
                 
-                # Read power of phase 1 (as charge power for simplicity)
-                power_l1 = await client.read_holding_registers(REG_POWER_L1_B, 1)
-                if power_l1 is not None:
-                    data["connector_A"]["charge_power"] = power_l1[0]
-                    data["connector_B"]["charge_power"] = power_l1[0]
+                # Read power sum (total power from all phases)
+                power_sum = await client.read_holding_registers(REG_POWER_SUM_B, 1)
+                if power_sum is not None:
+                    data["connector_A"]["charge_power"] = power_sum[0]
+                    data["connector_B"]["charge_power"] = power_sum[0]
                 
                 # Read the summary energy value
                 energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM_B, 2)
