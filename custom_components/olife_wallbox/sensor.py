@@ -560,13 +560,6 @@ async def async_setup_entry(
                 connector_device_info, 
                 f"{connector_unique_id}_wallbox_ev_state"
             ),
-            OlifeWallboxCurrentLimitSensor(
-                coordinator, 
-                connector_name, 
-                f"{connector_key}.current_limit", 
-                connector_device_info, 
-                f"{connector_unique_id}_current_limit"
-            ),
             OlifeWallboxChargeCurrentSensor(
                 coordinator, 
                 connector_name, 

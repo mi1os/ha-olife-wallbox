@@ -114,7 +114,7 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
-        self._attr_entity_category = None  # Main control, visible on main page
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
 
     @property
     def name(self):
