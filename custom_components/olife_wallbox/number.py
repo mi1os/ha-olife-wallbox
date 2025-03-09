@@ -25,6 +25,8 @@ from .const import (
     DEFAULT_READ_ONLY,
     REG_CURRENT_LIMIT_A,
     REG_CURRENT_LIMIT_B,
+    REG_CLOUD_CURRENT_LIMIT_A,
+    REG_CLOUD_CURRENT_LIMIT_B,
     REG_LED_PWM,
     REG_MAX_STATION_CURRENT,
     CONF_SCAN_INTERVAL,
@@ -44,8 +46,8 @@ async def async_setup_entry(
     slave_id = entry.data[CONF_SLAVE_ID]
     
     try:
-        client = OlifeWallboxModbusClient(host, port, slave_id)
-        
+    client = OlifeWallboxModbusClient(host, port, slave_id)
+    
         # Create a unique ID for the device
         device_unique_id = f"{host}_{port}_{slave_id}"
         
@@ -148,15 +150,11 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
         
     @property
     def native_step(self):
-        """Return the step value."""
-        return 1
+        """Return the step size."""
+        return 1  # 1 Amp steps
 
     async def async_set_native_value(self, value):
         """Set the value."""
-        if not self._available:
-            _LOGGER.warning("Cannot set current limit: Device unavailable")
-            raise HomeAssistantError("Cannot set current limit: Device unavailable")
-            
         try:
             _LOGGER.debug("Setting current limit to: %s (type: %s)", value, type(value))
             # Ensure value is an integer
@@ -171,7 +169,11 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
                 scaled_value = 32
                 _LOGGER.warning("Current limit value above maximum, setting to 32")
             
-            if await self._client.write_register(REG_CURRENT_LIMIT_A, scaled_value):
+            # Determine which register to use based on connector
+            # For most implementations, we use connector B registers
+            # REG_CURRENT_LIMIT_A (2007) and REG_CURRENT_LIMIT_B (2107) are read-only
+            # We should use REG_CLOUD_CURRENT_LIMIT_A (2006) or REG_CLOUD_CURRENT_LIMIT_B (2106)
+            if await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, scaled_value):
                 self._value = value
                 self._error_count = 0
                 _LOGGER.info("Current limit set to: %s", value)
@@ -196,7 +198,9 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
     async def async_update(self):
         """Update the state of the entity."""
         try:
-            result = await self._client.read_holding_registers(REG_CURRENT_LIMIT_A, 1)
+            # Read the current limit value
+            # Use REG_CURRENT_LIMIT_B for reading as it contains the actual current limit
+            result = await self._client.read_holding_registers(REG_CURRENT_LIMIT_B, 1)
             if result is not None:
                 self._available = True
                 self._value = result[0]
@@ -213,7 +217,7 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
             self._error_count += 1
             if self._should_log_error():
                 _LOGGER.error(
-                    "Error updating current limit: %s (error count: %s)",
+                    "Error reading current limit: %s (error count: %s)",
                     ex, self._error_count
                 )
             self._available = False
@@ -367,7 +371,7 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     def native_step(self):
         """Return the step value."""
         return 1
-        
+
     @property
     def entity_registry_enabled_default(self) -> bool:
         """Return if the entity should be enabled by default."""
@@ -387,11 +391,11 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
         """Update the state of the entity."""
         try:
             result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
-            if result is not None:
-                self._available = True
+        if result is not None:
+            self._available = True
                 self._value = result[0]
                 self._error_count = 0
-            else:
+        else:
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
