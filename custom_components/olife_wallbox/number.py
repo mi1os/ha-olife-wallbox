@@ -223,13 +223,15 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
             self._available = False
 
 class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
-    """Number entity to control LED PWM on Olife Energy Wallbox."""
+    """Entity for controlling the LED PWM value."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:led-outline"
-        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
+        self._attr_icon = "mdi:led-on"
+        self._attr_entity_category = EntityCategory.CONFIG
+        # Add optimistic mode
+        self._attr_assumed_state = True
 
     @property
     def name(self):
@@ -262,46 +264,28 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
         return 25
 
     async def async_set_native_value(self, value):
-        """Set the value."""
-        if not self._available:
-            _LOGGER.warning("Cannot set LED brightness: Device unavailable")
-            raise HomeAssistantError("Cannot set LED brightness: Device unavailable")
-            
+        """Set the LED PWM value."""
         try:
-            _LOGGER.debug("Setting LED brightness to: %s (type: %s)", value, type(value))
-            # Ensure value is an integer
-            scaled_value = int(round(float(value)))
-            _LOGGER.debug("Converted LED brightness value to integer: %s", scaled_value)
+            # Set the value optimistically before sending to device
+            old_value = self._value
+            self._value = value
+            self.async_write_ha_state()
             
-            # Ensure value is within valid range
-            if scaled_value < 0:
-                scaled_value = 0
-                _LOGGER.warning("LED brightness value below minimum, setting to 0")
-            elif scaled_value > 1000:
-                scaled_value = 1000
-                _LOGGER.warning("LED brightness value above maximum, setting to 1000")
+            _LOGGER.debug("Setting LED PWM to %s", value)
             
-            if await self._client.write_register(REG_LED_PWM, scaled_value):
-                self._value = value
-                self._error_count = 0
-                _LOGGER.info("LED brightness set to: %s", value)
+            # Write the value to the register
+            result = await self._client.write_register(REG_LED_PWM, int(value))
+            if not result:
+                # Revert to old value if failed
+                _LOGGER.error("Failed to set LED PWM")
+                self._value = old_value
                 self.async_write_ha_state()
-            else:
-                self._error_count += 1
-                if self._should_log_error():
-                    _LOGGER.error(
-                        "Failed to set LED brightness to %s (error count: %s)",
-                        value, self._error_count
-                    )
-                raise HomeAssistantError(f"Failed to set LED brightness to {value}")
         except Exception as ex:
-            self._error_count += 1
-            if self._should_log_error():
-                _LOGGER.error(
-                    "Error setting LED brightness to %s: %s (error count: %s)",
-                    value, ex, self._error_count
-                )
-            raise HomeAssistantError(f"Error setting LED brightness: {ex}")
+            _LOGGER.error("Error setting LED PWM: %s", ex)
+            # Revert optimistic update on error
+            self._value = old_value
+            self.async_write_ha_state()
+            raise HomeAssistantError(f"Error setting LED PWM: {ex}") from ex
 
     async def async_update(self):
         """Update the state of the entity."""
@@ -335,7 +319,9 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
-        self._attr_entity_category = EntityCategory.CONFIG  # This is configurable
+        self._attr_entity_category = EntityCategory.CONFIG
+        # Add optimistic mode
+        self._attr_assumed_state = True
 
     @property
     def name(self):
@@ -380,6 +366,11 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     async def async_set_native_value(self, value):
         """Set the max station current value."""
         try:
+            # Set the value optimistically before sending to device
+            old_value = self._value
+            self._value = value
+            self.async_write_ha_state()
+            
             # Register 5006 values are in amps
             amp_value = int(value)
             
@@ -390,14 +381,16 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             
             # Write the value to the register
             result = await self._client.write_register(REG_MAX_STATION_CURRENT, amp_value)
-            if result:
-                self._value = value
+            if not result:
+                # Revert to old value if failed
+                _LOGGER.error("Failed to set max station current")
+                self._value = old_value
                 self.async_write_ha_state()
-                return
-                
-            _LOGGER.error("Failed to set max station current")
         except Exception as ex:
             _LOGGER.error("Error setting max station current: %s", ex)
+            # Revert optimistic update on error
+            self._value = old_value
+            self.async_write_ha_state()
             raise HomeAssistantError(f"Error setting max station current: {ex}") from ex
 
     async def async_update(self):
