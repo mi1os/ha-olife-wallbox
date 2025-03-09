@@ -966,6 +966,8 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
         self._unsub_midnight = None
         self._today = dt_util.now().date()
+        # Add last timestamp to track time between readings
+        self._last_updated = None
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
@@ -1067,6 +1069,7 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
             return
             
         current_energy = self._get_value_from_data()
+        current_time = dt_util.now()
         
         if current_energy is None:
             return
@@ -1074,22 +1077,51 @@ class OlifeWallboxDailyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         # If this is the first reading, just store the value
         if self._last_energy is None:
             self._last_energy = current_energy
+            self._last_updated = current_time
             return
             
-        # Check if the session energy has been reset (new session started)
+        # Calculate energy difference since last reading
+        energy_diff = 0
+        
+        # Check if the energy counter has been reset (new session started)
         # or increased (continuing session)
         if current_energy < self._last_energy:
-            # New session - add the last complete session to the daily total
+            # New charging session detected
+            # Add the last session's value to our daily total
             _LOGGER.debug(
-                "New charging session detected. Adding %s Wh to daily total.", 
-                self._last_energy
+                "New charging session detected. Last session was %s Wh, current is %s Wh", 
+                self._last_energy,
+                current_energy
             )
-            self._daily_energy += self._last_energy
-            self._last_energy = current_energy
+            energy_diff = self._last_energy  # Add the completed session
         else:
-            # Session continuing - update the last energy value
-            self._last_energy = current_energy
+            # Session continuing or energy increased
+            # Add the incremental difference since last reading
+            energy_diff = current_energy - self._last_energy
             
+            # Sanity check - if the difference is unreasonably large, log it but still use it
+            if energy_diff > 10000:  # More than 10 kWh in one update is suspicious
+                _LOGGER.warning(
+                    "Unusually large energy increase: %s Wh (from %s to %s)",
+                    energy_diff,
+                    self._last_energy,
+                    current_energy
+                )
+        
+        # Only add non-zero energy differences
+        if energy_diff > 0:
+            self._daily_energy += energy_diff
+            _LOGGER.debug(
+                "Adding %s Wh to daily total (now %s Wh) from %s to %s",
+                energy_diff,
+                self._daily_energy,
+                self._last_energy,
+                current_energy
+            )
+            
+        # Update the stored values for next comparison
+        self._last_energy = current_energy
+        self._last_updated = current_time
         self.async_write_ha_state()
 
 class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
@@ -1103,8 +1135,10 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
-        self._unsub_month = None
-        self._month = dt_util.now().month
+        self._unsub_monthly = None
+        self._current_month = dt_util.now().month
+        # Add last timestamp to track time between readings
+        self._last_updated = None
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
@@ -1137,16 +1171,16 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         def month_callback(_):
             """Reset counter at the first day of month."""
             self._monthly_energy = 0.0
-            self._month = dt_util.now().month
+            self._current_month = dt_util.now().month
             self.async_write_ha_state()
             _LOGGER.debug("Monthly energy counter reset at first day of month")
             
             # Re-register for next month
-            self._unsub_month = async_track_point_in_time(
+            self._unsub_monthly = async_track_point_in_time(
                 self.hass, month_callback, start_of_next_month()
             )
             
-        self._unsub_month = async_track_point_in_time(
+        self._unsub_monthly = async_track_point_in_time(
             self.hass, month_callback, start_of_next_month()
         )
         
@@ -1175,8 +1209,8 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
     async def async_will_remove_from_hass(self):
         """When entity is being removed from hass."""
         await super().async_will_remove_from_hass()
-        if self._unsub_month is not None:
-            self._unsub_month()
+        if self._unsub_monthly is not None:
+            self._unsub_monthly()
 
     @property
     def name(self):
@@ -1213,6 +1247,7 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
             return
             
         current_energy = self._get_value_from_data()
+        current_time = dt_util.now()
         
         if current_energy is None:
             return
@@ -1220,23 +1255,52 @@ class OlifeWallboxMonthlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         # If this is the first reading, just store the value
         if self._last_energy is None:
             self._last_energy = current_energy
+            self._last_updated = current_time
             return
             
-        # Check if the session energy has been reset (new session started)
+        # Calculate energy difference since last reading
+        energy_diff = 0
+        
+        # Check if the energy counter has been reset (new session started)
         # or increased (continuing session)
         if current_energy < self._last_energy:
-            # New session - add the last complete session to the monthly total
+            # New charging session detected
+            # Add the last session's value to our monthly total
             _LOGGER.debug(
-                "New charging session detected. Adding %s Wh to monthly total.", 
-                self._last_energy
+                "New charging session detected. Last session was %s Wh, current is %s Wh", 
+                self._last_energy,
+                current_energy
             )
-            self._monthly_energy += self._last_energy
-            self._last_energy = current_energy
+            energy_diff = self._last_energy  # Add the completed session
         else:
-            # Session continuing - update the last energy value
-            self._last_energy = current_energy
+            # Session continuing or energy increased
+            # Add the incremental difference since last reading
+            energy_diff = current_energy - self._last_energy
             
-        self.async_write_ha_state() 
+            # Sanity check - if the difference is unreasonably large, log it but still use it
+            if energy_diff > 10000:  # More than 10 kWh in one update is suspicious
+                _LOGGER.warning(
+                    "Unusually large energy increase: %s Wh (from %s to %s)",
+                    energy_diff,
+                    self._last_energy,
+                    current_energy
+                )
+        
+        # Only add non-zero energy differences
+        if energy_diff > 0:
+            self._monthly_energy += energy_diff
+            _LOGGER.debug(
+                "Adding %s Wh to monthly total (now %s Wh) from %s to %s",
+                energy_diff,
+                self._monthly_energy,
+                self._last_energy,
+                current_energy
+            )
+            
+        # Update the stored values for next comparison
+        self._last_energy = current_energy
+        self._last_updated = current_time
+        self.async_write_ha_state()
 
 class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
     """Sensor for Olife Energy Wallbox yearly charge energy."""
@@ -1251,6 +1315,8 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._unsub_yearly = None
         self._this_year = dt_util.now().date().replace(month=1, day=1)
+        # Add last timestamp to track time between readings
+        self._last_updated = None
 
     async def async_added_to_hass(self):
         """Handle entity which will be added."""
@@ -1363,6 +1429,7 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
             return
             
         current_energy = self._get_value_from_data()
+        current_time = dt_util.now()
         
         if current_energy is None:
             return
@@ -1370,23 +1437,52 @@ class OlifeWallboxYearlyChargeEnergySensor(OlifeWallboxSensor, RestoreEntity):
         # If this is the first reading, just store the value
         if self._last_energy is None:
             self._last_energy = current_energy
+            self._last_updated = current_time
             return
             
-        # Check if the session energy has been reset (new session started)
+        # Calculate energy difference since last reading
+        energy_diff = 0
+        
+        # Check if the energy counter has been reset (new session started)
         # or increased (continuing session)
         if current_energy < self._last_energy:
-            # New session - add the last complete session to the yearly total
+            # New charging session detected
+            # Add the last session's value to our yearly total
             _LOGGER.debug(
-                "New charging session detected. Adding %s Wh to yearly total.", 
-                self._last_energy
+                "New charging session detected. Last session was %s Wh, current is %s Wh", 
+                self._last_energy,
+                current_energy
             )
-            self._yearly_energy += self._last_energy
-            self._last_energy = current_energy
+            energy_diff = self._last_energy  # Add the completed session
         else:
-            # Session continuing - update the last energy value
-            self._last_energy = current_energy
+            # Session continuing or energy increased
+            # Add the incremental difference since last reading
+            energy_diff = current_energy - self._last_energy
             
-        self.async_write_ha_state() 
+            # Sanity check - if the difference is unreasonably large, log it but still use it
+            if energy_diff > 10000:  # More than 10 kWh in one update is suspicious
+                _LOGGER.warning(
+                    "Unusually large energy increase: %s Wh (from %s to %s)",
+                    energy_diff,
+                    self._last_energy,
+                    current_energy
+                )
+        
+        # Only add non-zero energy differences
+        if energy_diff > 0:
+            self._yearly_energy += energy_diff
+            _LOGGER.debug(
+                "Adding %s Wh to yearly total (now %s Wh) from %s to %s",
+                energy_diff,
+                self._yearly_energy,
+                self._last_energy,
+                current_energy
+            )
+            
+        # Update the stored values for next comparison
+        self._last_energy = current_energy
+        self._last_updated = current_time
+        self.async_write_ha_state()
 
 class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox CP state."""
