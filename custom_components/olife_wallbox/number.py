@@ -380,17 +380,16 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     async def async_set_native_value(self, value):
         """Set the max station current value."""
         try:
-            # Convert from amps to milliamps before writing
-            milliamp_value = int(value * 1000)
+            # Register 5006 values are in amps
+            amp_value = int(value)
             
             _LOGGER.debug(
-                "Setting max station current to %s A (%s mA)",
-                value,
-                milliamp_value
+                "Setting max station current to %s A",
+                amp_value
             )
             
             # Write the value to the register
-            result = await self._client.write_register(REG_MAX_STATION_CURRENT, milliamp_value)
+            result = await self._client.write_register(REG_MAX_STATION_CURRENT, amp_value)
             if result:
                 self._value = value
                 self.async_write_ha_state()
@@ -408,8 +407,8 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
             result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             if result is not None:
                 self._available = True
-                # The value is in milliamps, convert to amps
-                self._value = result[0] / 1000
+                # The value is in amps, no conversion needed
+                self._value = result[0]
                 self._error_count = 0
             else:
                 self._error_count += 1
