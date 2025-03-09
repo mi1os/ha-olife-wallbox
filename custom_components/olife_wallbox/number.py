@@ -46,7 +46,7 @@ async def async_setup_entry(
     slave_id = entry.data[CONF_SLAVE_ID]
     
     try:
-    client = OlifeWallboxModbusClient(host, port, slave_id)
+        client = OlifeWallboxModbusClient(host, port, slave_id)
     
         # Create a unique ID for the device
         device_unique_id = f"{host}_{port}_{slave_id}"
@@ -391,11 +391,11 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
         """Update the state of the entity."""
         try:
             result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
-        if result is not None:
-            self._available = True
+            if result is not None:
+                self._available = True
                 self._value = result[0]
                 self._error_count = 0
-        else:
+            else:
                 self._error_count += 1
                 if self._should_log_error():
                     _LOGGER.warning(
