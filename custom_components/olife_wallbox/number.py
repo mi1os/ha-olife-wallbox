@@ -329,14 +329,13 @@ class OlifeWallboxLedPwm(OlifeWallboxNumberBase):
             self._available = False
 
 class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
-    """Entity to display the max station current."""
+    """Entity to display and set the max station current."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the number entity."""
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
-        self._attr_mode = "box"  # This helps mark it visually as read-only
+        self._attr_entity_category = EntityCategory.CONFIG  # This is configurable
 
     @property
     def name(self):
@@ -377,21 +376,35 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
     def entity_registry_enabled_default(self) -> bool:
         """Return if the entity should be enabled by default."""
         return True
-
-    @property
-    def read_only(self) -> bool:
-        """Return True as this is a read-only entity."""
-        return True
         
     async def async_set_native_value(self, value):
-        """This is a read-only entity, so this method should not be called."""
-        _LOGGER.warning("Cannot set max station current as it is read-only")
-        raise HomeAssistantError("Max station current is read-only and determined by the device settings")
+        """Set the max station current value."""
+        try:
+            # Convert from amps to milliamps before writing
+            milliamp_value = int(value * 1000)
+            
+            _LOGGER.debug(
+                "Setting max station current to %s A (%s mA)",
+                value,
+                milliamp_value
+            )
+            
+            # Write the value to the register
+            result = await self._client.write_register(REG_MAX_STATION_CURRENT, milliamp_value)
+            if result:
+                self._value = value
+                self.async_write_ha_state()
+                return
+                
+            _LOGGER.error("Failed to set max station current")
+        except Exception as ex:
+            _LOGGER.error("Error setting max station current: %s", ex)
+            raise HomeAssistantError(f"Error setting max station current: {ex}") from ex
 
     async def async_update(self):
         """Update the state of the entity."""
         try:
-            # Use the correct register REG_MAX_STATION_CURRENT (5006)
+            # Reading register 5006 (REG_MAX_STATION_CURRENT)
             result = await self._client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
             if result is not None:
                 self._available = True
