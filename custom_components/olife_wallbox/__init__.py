@@ -120,7 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("Set model to: %s", device_info["model"])
         else:
             # Handle invalid or missing model information
-            _LOGGER.warning("Invalid or missing station type value: %s", pn_type)
+            _LOGGER.info("Invalid or missing station type value: %s", pn_type)
             device_info["model"] = "Olife Wallbox"  # Use a generic model name instead of Unknown Unknown
             
         # Connector information
@@ -143,7 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("Set connector_left to: %s", device_info["connector_left"])
         else:
             # Handle invalid or missing connector information
-            _LOGGER.warning("Invalid or missing left connector value: %s", pn_left)
+            _LOGGER.info("Invalid or missing left connector value: %s", pn_left)
             device_info["connector_left"] = "Type 2"  # Default to most common type
             
         if pn_right and pn_right[0] < 100:  # Sanity check for valid values
@@ -156,7 +156,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("Set connector_right to: %s", device_info["connector_right"])
         else:
             # Handle invalid or missing connector information
-            _LOGGER.warning("Invalid or missing right connector value: %s", pn_right)
+            _LOGGER.info("Invalid or missing right connector value: %s", pn_right)
             device_info["connector_right"] = "Type 2"  # Default to most common type
             
         # Number of connectors
