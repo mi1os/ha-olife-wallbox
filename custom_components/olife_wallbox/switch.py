@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
@@ -32,13 +33,11 @@ from .const import (
     REG_AUTOMATIC_DIPSWITCH_ON,
     REG_MAX_CURRENT_DIPSWITCH_ON,
     REG_BALANCING_EXTERNAL_CURRENT,
+    ERROR_LOG_THRESHOLD
 )
 from .modbus_client import OlifeWallboxModbusClient
 
 _LOGGER = logging.getLogger(__name__)
-
-# Error count threshold for reducing log spam
-ERROR_LOG_THRESHOLD = 10
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -228,14 +227,14 @@ class OlifeWallboxSwitchBase(SwitchEntity):
             self._available = False
 
 class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
-    """Switch to control charging on Olife Energy Wallbox (uses verify user register to enable charging)."""
+    """Switch to control charging on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:ev-station"
-        self._register = REG_CHARGING_ENABLE_A
-
+        self._register = REG_CHARGING_ENABLE_A if "A" in device_unique_id else REG_CHARGING_ENABLE_B
+        self._attr_entity_category = None  # Main control, visible on main page
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -254,14 +253,14 @@ class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
         return "mdi:ev-station" if self._is_on else "mdi:ev-station-off"
 
 class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
-    """Switch to control user verification on Olife Energy Wallbox (verify user by cloud/RFID)."""
+    """Switch to control user verification on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:check-decagram-outline"
-        self._register = REG_VERIFY_USER_A
-
+        self._register = REG_VERIFY_USER_A if "A" in device_unique_id else REG_VERIFY_USER_B
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -280,14 +279,14 @@ class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
         return "mdi:check-decagram" if self._is_on else "mdi:check-decagram-outline"
 
 class OlifeWallboxAutomaticSwitch(OlifeWallboxSwitchBase):
-    """Switch to control automatic mode on Olife Energy Wallbox (uses verify user register since automatic mode isn't directly available)."""
+    """Switch to control automatic mode on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._attr_icon = "mdi:check-decagram"
-        self._register = REG_AUTOMATIC_A
-
+        self._register = REG_AUTOMATIC_A if "A" in device_unique_id else REG_AUTOMATIC_B
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
+        
     @property
     def name(self):
         """Return the name of the switch."""
@@ -313,6 +312,7 @@ class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:check-decagram"
         self._register = REG_AUTOMATIC
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
         # Start as unavailable until we can verify register exists
         self._available = False
         self._register_available = False
@@ -395,6 +395,7 @@ class OlifeWallboxAutomaticDipswitchSwitch(OlifeWallboxSwitchBase):
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:dip-switch"
         self._register = REG_AUTOMATIC_DIPSWITCH_ON
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
         # Start as unavailable until we can verify register exists
         self._available = False
         self._register_available = False
@@ -477,6 +478,7 @@ class OlifeWallboxMaxCurrentDipswitchSwitch(OlifeWallboxSwitchBase):
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:current-ac"
         self._register = REG_MAX_CURRENT_DIPSWITCH_ON
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
         # Start as unavailable until we can verify register exists
         self._available = False
         self._register_available = False
@@ -559,6 +561,7 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
         super().__init__(client, name, device_info, device_unique_id)
         self._attr_icon = "mdi:electric-switch"
         self._register = REG_BALANCING_EXTERNAL_CURRENT
+        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
         # Start as unavailable until we can verify register exists
         self._available = False
         self._register_available = False
