@@ -27,8 +27,6 @@ from .const import (
     REG_CHARGING_ENABLE_B,
     REG_VERIFY_USER_A,
     REG_VERIFY_USER_B,
-    REG_AUTOMATIC_A,
-    REG_AUTOMATIC_B,
     REG_AUTOMATIC,
     REG_AUTOMATIC_DIPSWITCH_ON,
     REG_MAX_CURRENT_DIPSWITCH_ON,
@@ -71,8 +69,7 @@ async def async_setup_entry(
             return
             
         entities = [
-            OlifeWallboxChargingSwitch(client, name, device_info, device_unique_id),  # Main charging control
-            OlifeWallboxVerifyUserSwitch(client, name, device_info, device_unique_id),  # User verification
+            OlifeWallboxChargingAuthorizationSwitch(client, name, device_info, device_unique_id),  # Charging authorization control
             OlifeWallboxAutomaticGlobalSwitch(client, name, device_info, device_unique_id),  # Automatic mode (main control)
             OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),  # Automatic mode dipswitch control
             OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),  # Max current dipswitch control
@@ -224,8 +221,8 @@ class OlifeWallboxSwitchBase(SwitchEntity):
                 )
             self._available = False
 
-class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
-    """Switch to control charging on Olife Energy Wallbox."""
+class OlifeWallboxChargingAuthorizationSwitch(OlifeWallboxSwitchBase):
+    """Switch to authorize charging on Olife Energy Wallbox."""
 
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the switch."""
@@ -236,12 +233,12 @@ class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
     @property
     def name(self):
         """Return the name of the switch."""
-        return "Charging"
+        return "Charging Authorization"
         
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self._device_unique_id}_charging_switch"
+        return f"{self._device_unique_id}_charging_auth_switch"
         
     @property
     def icon(self):
@@ -249,32 +246,6 @@ class OlifeWallboxChargingSwitch(OlifeWallboxSwitchBase):
         if not self._available:
             return "mdi:ev-station-off"
         return "mdi:ev-station" if self._is_on else "mdi:ev-station-off"
-
-class OlifeWallboxVerifyUserSwitch(OlifeWallboxSwitchBase):
-    """Switch to control user verification on Olife Energy Wallbox."""
-
-    def __init__(self, client, name, device_info, device_unique_id):
-        """Initialize the switch."""
-        super().__init__(client, name, device_info, device_unique_id)
-        self._register = REG_VERIFY_USER_A if "A" in device_unique_id else REG_VERIFY_USER_B
-        self._attr_entity_category = EntityCategory.CONFIG  # Move to configuration tab
-        
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return "Verify User"
-        
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        return f"{self._device_unique_id}_verify_user_switch"
-        
-    @property
-    def icon(self):
-        """Return the icon to use in the frontend based on the switch state."""
-        if not self._available:
-            return "mdi:check-decagram-outline"
-        return "mdi:check-decagram" if self._is_on else "mdi:check-decagram-outline"
 
 class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
     """Switch for Olife Energy Wallbox automatic mode setting (global register 5003)."""

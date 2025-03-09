@@ -136,7 +136,6 @@ REG_CHARGE_ENERGY_A = 4006      # Using total energy as charge energy (connector
 REG_CHARGE_POWER_A = 4013        # Using power sum for charge power (connector A)
 REG_MAX_STATION_CURRENT_A = 2008 # Using PP current limit as max station current (connector A)
 REG_CHARGING_ENABLE_A = 2001      # Using verify user as charging enable (connector A)
-REG_AUTOMATIC_A = 2001           # Not directly available, using verify user (connector A)
 
 # Second connector equivalent mappings
 REG_CHARGE_CURRENT_B = 2107     # Using current limit register as charge current (connector B)
@@ -144,7 +143,6 @@ REG_CHARGE_ENERGY_B = 4106        # Using total energy as charge energy (connect
 REG_CHARGE_POWER_B = 4113          # Using power sum for charge power (connector B)
 REG_MAX_STATION_CURRENT_B = 2108   # Using PP current limit as max station current (connector B)
 REG_CHARGING_ENABLE_B = 2101        # Using verify user as charging enable (connector B)
-REG_AUTOMATIC_B = 2101             # Not directly available, using verify user (connector B)
 
 # Device information registers
 REG_DEVICE_INFO_START = 6000   # Device information start
