@@ -15,7 +15,6 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_SLAVE_ID,
     DEFAULT_SCAN_INTERVAL,
-    FAST_SCAN_INTERVAL,
     CONF_SLAVE_ID,
     CONF_SCAN_INTERVAL,
     # Sensor groups options

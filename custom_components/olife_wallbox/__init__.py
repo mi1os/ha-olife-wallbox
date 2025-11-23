@@ -153,7 +153,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return True
     except Exception as ex:
         _LOGGER.error("Failed to set up Olife Wallbox: %s", ex)
-        await client.disconnect()
+        # Only try to disconnect if client was created
+        if 'client' in locals():
+            await client.disconnect()
         return False
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

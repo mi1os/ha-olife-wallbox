@@ -7,7 +7,6 @@ PLATFORMS = ["switch", "number", "sensor", "button"]
 DEFAULT_PORT = 502
 DEFAULT_SLAVE_ID = 1
 DEFAULT_SCAN_INTERVAL = 30
-FAST_SCAN_INTERVAL = 5
 
 # Configuration
 CONF_SLAVE_ID = "slave_id"
@@ -274,10 +273,3 @@ CP_STATE_ICONS = {
     12: "mdi:current-dc",           # RCD Fault
     13: "mdi:connection",           # Connector Missing
 }
-
-@property
-def icon(self):
-    """Return the icon to use based on state."""
-    if self._is_on:
-        return "mdi:ev-station"
-    return "mdi:ev-station-off" 

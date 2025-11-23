@@ -1,10 +1,8 @@
 """Sensor platform for Olife Energy Wallbox integration."""
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import Optional, Any, Dict
-import async_timeout
 import asyncio
-import sys
 import time
 
 from homeassistant.components.sensor import (
@@ -28,6 +26,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
+    UpdateFailed,
 )
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.event import async_track_time_change, async_track_point_in_time
@@ -38,7 +37,6 @@ from .const import (
     DOMAIN,
     CONF_SLAVE_ID,
     CONF_SCAN_INTERVAL,
-    FAST_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     CONF_ENABLE_PHASE_SENSORS,
     DEFAULT_ENABLE_PHASE_SENSORS,
@@ -1183,7 +1181,7 @@ class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
         # Energy is reported in mWh, convert to kWh (divide by 1,000,000)
         energy_mwh = self._get_value_from_data()
         if energy_mwh is not None:
-            return round(energy_mwh / 1000000.0, 3)
+            return round(energy_mwh / 1000000.0, 2)
         return None
     
     @property
