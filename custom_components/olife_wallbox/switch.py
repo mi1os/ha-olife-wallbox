@@ -88,6 +88,7 @@ class OlifeWallboxSwitchBase(SwitchEntity):
         self._device_info = device_info
         self._device_unique_id = device_unique_id
         self._attr_has_entity_name = True
+        self._attr_should_poll = True  # Switches update via async_update
         self._error_count = 0
         self._register = None  # Subclasses need to define this
         

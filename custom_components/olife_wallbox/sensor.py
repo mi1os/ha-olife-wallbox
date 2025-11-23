@@ -606,9 +606,10 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         self._device_info = device_info
         self._device_unique_id = device_unique_id
         self._attr_has_entity_name = True
-
+        self._attr_should_poll = False  # Coordinator handles updates
+    
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return if entity is available."""
         if not self.coordinator.last_update_success:
             return False
@@ -631,7 +632,7 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
         else:
             # Direct key
             return self._key in self.coordinator.data
-
+    
     @property
     def unique_id(self):
         """Return a unique ID."""

@@ -78,6 +78,7 @@ class OlifeWallboxButtonBase(ButtonEntity):
         self._device_info = device_info
         self._device_unique_id = device_unique_id
         self._attr_has_entity_name = True
+        self._attr_should_poll = False  # Buttons don't need polling
         self._error_count = 0
         self._register = None  # Subclasses need to define this
         
