@@ -1,3 +1,36 @@
+# [1.0.0](https://github.com/mi1os/ha-olife-wallbox/compare/v0.9.8...v1.0.0) (2025-11-23)
+
+
+### Features
+
+* add HA entity best practices - available and should_poll ([564c74a](https://github.com/mi1os/ha-olife-wallbox/commit/564c74afab5969cfb0b63555683b87db7285f107))
+* complete HA best practices - error handling, translations, docs ([60a88a1](https://github.com/mi1os/ha-olife-wallbox/commit/60a88a1e127e9bf20384541902a4c66603a41b24))
+* convert energy sensors to kWh and remove redundant periodic sensors ([5dc8f37](https://github.com/mi1os/ha-olife-wallbox/commit/5dc8f379bbd01262cf8e7330a992df1ed7e1f8fc))
+* implement semantic-release for automated versioning ([50a4c0e](https://github.com/mi1os/ha-olife-wallbox/commit/50a4c0e33ec4f7375749cd56fe2b200c4c118684))
+
+
+### Performance Improvements
+
+* code quality improvements - optimize performance and reduce memory ([34957c5](https://github.com/mi1os/ha-olife-wallbox/commit/34957c530ea2fbb975ebfff83b38324e20c7b57f))
+
+
+### BREAKING CHANGES
+
+* Release process is now fully automated using semantic-release
+
+- Add .releaserc.yml configuration
+- Add scripts/update_version.py for automatic manifest updates
+- Replace manual release workflow with semantic-release automation
+- Add CHANGELOG.md for auto-generated changelogs
+- Update CONTRIBUTING.md with conventional commit guidelines
+
+Releases now happen automatically on merge to main based on commit messages:
+- fix: triggers patch version (0.9.8 -> 0.9.9)
+- feat: triggers minor version (0.9.8 -> 0.10.0)
+- feat! or BREAKING CHANGE: triggers major version (0.9.8 -> 1.0.0)
+
+No more manual version bumping or tagging required!
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
