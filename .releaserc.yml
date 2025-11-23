@@ -1,0 +1,18 @@
+branches:
+  - main
+plugins:
+  - "@semantic-release/commit-analyzer"
+  - "@semantic-release/release-notes-generator"
+  - - "@semantic-release/changelog"
+    - changelogFile: CHANGELOG.md
+  - - "@semantic-release/exec"
+    - prepareCmd: "python scripts/update_version.py ${nextRelease.version}"
+  - - "@semantic-release/github"
+    - assets:
+      - path: "olife_wallbox.zip"
+        label: "HACS Installation ZIP"
+  - - "@semantic-release/git"
+    - assets:
+      - "CHANGELOG.md"
+      - "custom_components/olife_wallbox/manifest.json"
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

@@ -27,10 +27,51 @@ Thank you for considering contributing to the Olife Energy Wallbox integration! 
    flake8 custom_components/
    ```
 
-5. Commit your changes:
+5. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/):
    ```bash
-   git commit -m "Description of changes"
+   # For bug fixes (patch version bump: 0.9.8 -> 0.9.9)
+   git commit -m "fix: resolve connection timeout issue"
+   
+   # For new features (minor version bump: 0.9.8 -> 0.10.0)
+   git commit -m "feat: add new energy monitoring sensor"
+   
+   # For breaking changes (major version bump: 0.9.8 -> 1.0.0)
+   git commit -m "feat!: remove deprecated daily sensors
+   
+   BREAKING CHANGE: Daily/monthly/yearly sensors removed, use Energy Dashboard instead"
+   
+   # For documentation changes (no version bump)
+   git commit -m "docs: update installation instructions"
+   
+   # For code refactoring (no version bump)
+   git commit -m "refactor: simplify error handling logic"
    ```
+
+### Commit Message Format
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and changelog generation.
+
+**Format**: `<type>(<scope>): <subject>`
+
+**Types**:
+- `feat:` - New feature (triggers minor version bump)
+- `fix:` - Bug fix (triggers patch version bump)
+- `docs:` - Documentation only changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring without functionality changes
+- `perf:` - Performance improvements
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks, dependency updates
+
+**Breaking Changes**: Add `!` after type or `BREAKING CHANGE:` in footer to trigger major version bump
+
+**Examples**:
+```bash
+feat(sensor): add phase voltage monitoring
+fix(switch): correct automatic charging toggle state
+docs(readme): add HACS installation instructions
+perf(modbus): reduce connection pooling overhead
+```
 
 ## Pull Request Process
 
@@ -45,20 +86,17 @@ Thank you for considering contributing to the Olife Energy Wallbox integration! 
 
 ## Release Process
 
-When creating a new release:
+**Releases are fully automated!** 🎉
 
-1. Use the release script:
-   ```bash
-   ./scripts/release.sh 0.x.y
-   ```
+When your PR is merged to `main`:
+1. Semantic-release analyzes commit messages
+2. Determines version bump based on commit types
+3. Updates `manifest.json` automatically
+4. Generates `CHANGELOG.md` automatically
+5. Creates GitHub release with ZIP file
+6. Tags the release
 
-2. Push the changes and tag:
-   ```bash
-   git push origin main
-   git push origin vX.Y.Z
-   ```
-
-3. GitHub Actions will automatically create the release
+**You don't need to do anything!** Just use conventional commits.
 
 ## Code Style
 
