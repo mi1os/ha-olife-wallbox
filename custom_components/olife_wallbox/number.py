@@ -66,6 +66,7 @@ async def async_setup_entry(
             OlifeWallboxCurrentLimit(client, name, device_info, device_unique_id),
             OlifeWallboxLedPwm(client, name, device_info, device_unique_id),
             OlifeWallboxMaxStationCurrent(client, name, device_info, device_unique_id),
+            OlifeWallboxSolarOffset(hass, entry.entry_id, name, device_info, device_unique_id),
         ]
         
         async_add_entities(entities)
@@ -420,3 +421,82 @@ class OlifeWallboxMaxStationCurrent(OlifeWallboxNumberBase):
                     ex, self._error_count
                 )
             self._available = False 
+
+class OlifeWallboxSolarOffset(NumberEntity):
+    """Number entity for solar charging offset configuration."""
+
+    def __init__(self, hass, entry_id, name, device_info, device_unique_id):
+        """Initialize the number entity."""
+        self.hass = hass
+        self._entry_id = entry_id
+        self._name = name
+        self._device_info = device_info
+        self._device_unique_id = device_unique_id
+        self._attr_has_entity_name = True
+        self._attr_should_poll = False  # This is a virtual number, no polling needed
+        self._attr_icon = "mdi:solar-power-variant"
+        self._attr_entity_category = EntityCategory.CONFIG
+        
+        # Get initial value from config or use default
+        from .const import CONF_MIN_CURRENT_OFFSET, DEFAULT_MIN_CURRENT_OFFSET, DOMAIN
+        if DOMAIN in hass.data and entry_id in hass.data[DOMAIN]:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            if entry:
+                self._value = entry.options.get(CONF_MIN_CURRENT_OFFSET, DEFAULT_MIN_CURRENT_OFFSET)
+            else:
+                self._value = DEFAULT_MIN_CURRENT_OFFSET
+        else:
+            self._value = DEFAULT_MIN_CURRENT_OFFSET
+        
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        return "Solar Offset"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_solar_offset"
+        
+    @property
+    def native_value(self):
+        """Return the current value."""
+        return self._value
+        
+    @property
+    def native_unit_of_measurement(self):
+        """Return the unit of measurement."""
+        return UnitOfElectricCurrent.AMPERE
+        
+    @property
+    def native_min_value(self):
+        """Return the minimum value."""
+        return 0
+        
+    @property
+    def native_max_value(self):
+        """Return the maximum value."""
+        return 32
+        
+    @property
+    def native_step(self):
+        """Return the step size."""
+        return 1
+        
+    @property
+    def device_info(self):
+        """Return device information."""
+        return self._device_info
+
+    async def async_set_native_value(self, value):
+        """Set the value."""
+        self._value = value
+        self.async_write_ha_state()
+        
+        # Update the solar optimizer if it exists
+        from .const import DOMAIN
+        if DOMAIN in self.hass.data and self._entry_id in self.hass.data[DOMAIN]:
+            optimizer = self.hass.data[DOMAIN][self._entry_id].get("solar_optimizer")
+            if optimizer:
+                optimizer.set_offset(int(value))
+                _LOGGER.info("Solar offset updated to %sA", value)

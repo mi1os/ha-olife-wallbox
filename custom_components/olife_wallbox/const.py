@@ -17,11 +17,18 @@ CONF_ENABLE_PHASE_SENSORS = "enable_phase_sensors"
 CONF_ENABLE_ERROR_SENSORS = "enable_error_sensors"
 
 CONF_READ_ONLY = "read_only"
+CONF_SOLAR_POWER_ENTITY = "solar_power_entity"
+CONF_CHARGING_PHASES = "charging_phases"
+CONF_MIN_CURRENT_OFFSET = "min_current_offset"
 
 # Default values for advanced options
 DEFAULT_ENABLE_PHASE_SENSORS = True
 DEFAULT_ENABLE_ERROR_SENSORS = True
+DEFAULT_ENABLE_PHASE_SENSORS = True
+DEFAULT_ENABLE_ERROR_SENSORS = True
 DEFAULT_READ_ONLY = False
+DEFAULT_CHARGING_PHASES = 3
+DEFAULT_MIN_CURRENT_OFFSET = 0
 
 # Error count threshold for reducing log spam
 ERROR_LOG_THRESHOLD = 10

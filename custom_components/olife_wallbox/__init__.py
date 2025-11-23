@@ -27,6 +27,14 @@ from .const import (
 )
 from .services import async_setup_services, async_unload_services
 from .modbus_client import OlifeWallboxModbusClient
+from .solar_control import OlifeSolarOptimizer
+from .const import (
+    CONF_SOLAR_POWER_ENTITY,
+    CONF_CHARGING_PHASES,
+    CONF_MIN_CURRENT_OFFSET,
+    DEFAULT_CHARGING_PHASES,
+    DEFAULT_MIN_CURRENT_OFFSET,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,7 +145,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "client": client,
             "device_info": device_info,
             "read_only": read_only,
+            "read_only": read_only,
         }
+
+        # Initialize Solar Optimizer if configured
+        solar_entity = entry.options.get(CONF_SOLAR_POWER_ENTITY)
+        if solar_entity:
+            charging_phases = entry.options.get(CONF_CHARGING_PHASES, DEFAULT_CHARGING_PHASES)
+            min_offset = entry.options.get(CONF_MIN_CURRENT_OFFSET, DEFAULT_MIN_CURRENT_OFFSET)
+            
+            # Construct max station current entity ID
+            # This is a bit of a guess, ideally we'd get the entity ID from the entity registry
+            # But we can also pass the entity object if we refactor, or just look it up dynamically
+            # For now, let's pass None and let the optimizer handle it or look it up if we can find a way
+            # Actually, we can construct the ID if we know the format: number.name_max_station_current
+            # But names can change. 
+            # Let's try to find the entity ID from the device registry or entity registry
+            
+            optimizer = OlifeSolarOptimizer(
+                hass, 
+                client, 
+                solar_entity, 
+                charging_phases, 
+                min_offset,
+                # We'll implement dynamic max current lookup inside the optimizer or pass None for now
+                None 
+            )
+            hass.data[DOMAIN][entry.entry_id]["solar_optimizer"] = optimizer
+            # Don't auto-enable - let the solar mode switch control it
+            _LOGGER.info("Solar optimizer created but not enabled - use Solar Mode switch to enable")
+        
         
         # Register services once (on first setup)
         if len(hass.data[DOMAIN]) == 1:
@@ -174,6 +211,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await client.disconnect()
         hass.data[DOMAIN].pop(entry.entry_id)
     
+    # Unload solar optimizer
+    if hass.data[DOMAIN].get(entry.entry_id) and "solar_optimizer" in hass.data[DOMAIN][entry.entry_id]:
+        hass.data[DOMAIN][entry.entry_id]["solar_optimizer"].disable()
+
     # Unload services if this is the last entry
     if not hass.data[DOMAIN]:
         async_unload_services(hass)

@@ -70,6 +70,7 @@ async def async_setup_entry(
             OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),  # Automatic mode dipswitch control
             OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),  # Max current dipswitch control
             OlifeWallboxBalancingExternalCurrentSwitch(client, name, device_info, device_unique_id),
+            OlifeWallboxSolarModeSwitch(hass, entry.entry_id, name, device_info, device_unique_id),  # Solar mode toggle
         ]
         
         async_add_entities(entities)
@@ -551,3 +552,81 @@ class OlifeWallboxBalancingExternalCurrentSwitch(OlifeWallboxSwitchBase):
                     ex, self._error_count
                 )
             self._available = False 
+
+class OlifeWallboxSolarModeSwitch(SwitchEntity):
+    """Switch to enable/disable solar mode."""
+
+    def __init__(self, hass, entry_id, name, device_info, device_unique_id):
+        """Initialize the solar mode switch."""
+        self.hass = hass
+        self._entry_id = entry_id
+        self._name = name
+        self._device_info = device_info
+        self._device_unique_id = device_unique_id
+        self._attr_has_entity_name = True
+        self._attr_should_poll = False  # This is a virtual switch, no polling needed
+        self._attr_icon = "mdi:solar-power"
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._is_on = False
+        
+    @property
+    def name(self):
+        """Return the name of the switch."""
+        return "Solar Mode"
+        
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return f"{self._device_unique_id}_solar_mode"
+        
+    @property
+    def is_on(self):
+        """Return true if the switch is on."""
+        return self._is_on
+        
+    @property
+    def device_info(self):
+        """Return device information."""
+        return self._device_info
+        
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend."""
+        return "mdi:solar-power" if self._is_on else "mdi:solar-power-variant-outline"
+        
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the switch on."""
+        self._is_on = True
+        self.async_write_ha_state()
+        
+        # Enable solar optimizer if it exists
+        if DOMAIN in self.hass.data and self._entry_id in self.hass.data[DOMAIN]:
+            optimizer = self.hass.data[DOMAIN][self._entry_id].get("solar_optimizer")
+            if optimizer:
+                await optimizer.async_enable()
+                _LOGGER.info("Solar mode enabled")
+            
+            # Also enable automatic mode since charging is "free" with solar
+            client = self.hass.data[DOMAIN][self._entry_id].get("client")
+            if client:
+                try:
+                    from .const import REG_AUTOMATIC
+                    if await client.write_register(REG_AUTOMATIC, 1):
+                        _LOGGER.info("Automatic mode enabled with solar mode")
+                    else:
+                        _LOGGER.warning("Failed to enable automatic mode")
+                except Exception as ex:
+                    _LOGGER.error("Error enabling automatic mode: %s", ex)
+            
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the switch off."""
+        self._is_on = False
+        self.async_write_ha_state()
+        
+        # Disable solar optimizer if it exists
+        if DOMAIN in self.hass.data and self._entry_id in self.hass.data[DOMAIN]:
+            optimizer = self.hass.data[DOMAIN][self._entry_id].get("solar_optimizer")
+            if optimizer:
+                optimizer.disable()
+                _LOGGER.info("Solar mode disabled")
+

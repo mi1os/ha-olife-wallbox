@@ -25,7 +25,11 @@ from .const import (
     DEFAULT_ENABLE_ERROR_SENSORS,
 
     CONF_READ_ONLY,
+    CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
+    CONF_SOLAR_POWER_ENTITY,
+    CONF_CHARGING_PHASES,
+    DEFAULT_CHARGING_PHASES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,6 +156,16 @@ class OlifeWallboxOptionsFlow(config_entries.OptionsFlow):
                     CONF_ENABLE_ERROR_SENSORS, DEFAULT_ENABLE_ERROR_SENSORS
                 ),
             ): bool,
+            vol.Optional(
+                CONF_SOLAR_POWER_ENTITY,
+                description={"suggested_value": self.entry.options.get(CONF_SOLAR_POWER_ENTITY)}
+            ): str,
+            vol.Optional(
+                CONF_CHARGING_PHASES,
+                default=self.entry.options.get(
+                    CONF_CHARGING_PHASES, DEFAULT_CHARGING_PHASES
+                ),
+            ): vol.In([1, 3]),
 
         }
 
