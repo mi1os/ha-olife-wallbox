@@ -166,19 +166,32 @@ async def async_setup_entry(
         try:
             # Reuse the existing ModbusClient from hass.data
             if not await client.connect():
-                _LOGGER.error("Failed to connect to Olife Wallbox at %s:%s", host, port)
+                # Only log connection failure on state change
+                if not hasattr(async_update_data, '_last_connected') or async_update_data._last_connected:
+                    _LOGGER.error("Failed to connect to Olife Wallbox at %s:%s", host, port)
+                    async_update_data._last_connected = False
                 return {}
+            
+            # Log successful reconnection
+            if hasattr(async_update_data, '_last_connected') and not async_update_data._last_connected:
+                _LOGGER.info("Successfully reconnected to Olife Wallbox at %s:%s", host, port)
+            async_update_data._last_connected = True
             
             # Check if the client has too many consecutive errors
             if client.consecutive_errors > MAX_CONSECUTIVE_ERRORS:
-                _LOGGER.warning("Too many consecutive errors (%s), trying to reset connection", client.consecutive_errors)
+                # Only log on state change
+                if not hasattr(async_update_data, '_reset_attempted') or not async_update_data._reset_attempted:
+                    _LOGGER.warning("Too many consecutive errors (%s), attempting connection reset", client.consecutive_errors)
+                    async_update_data._reset_attempted = True
+                    
                 await client.disconnect()
                 await asyncio.sleep(1)
                 if not await client.connect():
-                    _LOGGER.error("Failed to reset connection after multiple errors")
+                    _LOGGER.debug("Failed to reset connection after multiple errors (will retry)")
                     return {}
                 else:
                     _LOGGER.info("Successfully reset connection after multiple errors")
+                    async_update_data._reset_attempted = False
             
             # Create a data object to store all fetched values
             data = {}
@@ -596,7 +609,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
-    """Base class for Olife Energy Wallbox sensors."""
+    """Base class for Olife Energy Wallbox sensors using DataUpdateCoordinator."""
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id):
         """Initialize the sensor."""
@@ -668,7 +681,11 @@ class OlifeWallboxSensor(CoordinatorEntity, SensorEntity):
             return self.coordinator.data.get(key)
 
 class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox EV state."""
+    """Sensor for EV charging state.
+    
+    Reports the current state of the EV charging process (e.g., connected,
+    charging, completed) using standardized Wallbox EV state codes.
+    """
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id):
         """Initialize the sensor."""
@@ -794,7 +811,11 @@ class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
         return SensorStateClass.MEASUREMENT
 
 class OlifeWallboxChargeEnergySensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox charge energy."""
+    """Sensor for total charge energy delivered.
+    
+    Reports cumulative energy delivered by the wallbox in kWh.
+    Energy is stored as mWh on the device and converted for display.
+    """
 
     @property
     def name(self):
@@ -830,7 +851,10 @@ class OlifeWallboxChargeEnergySensor(OlifeWallboxSensor):
         return SensorStateClass.TOTAL_INCREASING
 
 class OlifeWallboxChargePowerSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox charge power."""
+    """Sensor for current charging power.
+    
+    Reports instantaneous power draw during charging in watts (W).
+    """
     
     def __init__(self, coordinator, name, key, device_info, device_unique_id, connector_idx=None):
         """Initialize the sensor."""
@@ -1012,7 +1036,11 @@ class OlifeWallboxErrorCodeSensor(OlifeWallboxSensor):
         return "mdi:alert-circle"
 
 class OlifeWallboxPhasePowerSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox phase power."""
+    """Sensor for per-phase power consumption.
+    
+    Reports power draw for individual electrical phases (L1, L2, L3).
+    Useful for monitoring load balance across phases.
+    """
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
         """Initialize the sensor."""
@@ -1146,7 +1174,11 @@ class OlifeWallboxPhaseVoltageSensor(OlifeWallboxSensor):
         return "mdi:sine-wave"
 
 class OlifeWallboxPhaseEnergySensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox phase energy."""
+    """Sensor for per-phase energy consumption.
+    
+    Reports cumulative energy delivered per electrical phase in kWh.
+    Energy stored as mWh on device, converted for display.
+    """
 
     def __init__(self, coordinator, name, key, device_info, device_unique_id, phase_num):
         """Initialize the sensor."""

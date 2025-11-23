@@ -1,0 +1,103 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Olife Wallbox Setup",
+        "description": "Configure your Olife Energy Wallbox",
+        "data": {
+          "name": "Device name",
+          "host": "Host address",
+          "port": "Modbus TCP port", 
+          "slave_id": "Modbus device ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to wallbox",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This wallbox is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Olife Wallbox Options",
+        "data": {
+          "read_only": "Read-only mode (disable controls)",
+          "scan_interval": "Update interval (seconds)",
+          "enable_phase_sensors": "Enable phase sensors",
+          "enable_error_sensors": "Enable diagnostic sensors"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ev_state": {
+        "name": "EV state"
+      },
+      "charge_power": {
+        "name": "Charge power"
+      },
+      "charge_energy": {
+        "name": "Charge energy"
+      },
+      "charge_current": {
+        "name": "Charge current"
+      },
+      "current_limit": {
+        "name": "Current limit"
+      },
+      "phase_power": {
+        "name": "Phase {phase} power"
+      },
+      "phase_current": {
+        "name": "Phase {phase} current"
+      },
+      "phase_voltage": {
+        "name": "Phase {phase} voltage"
+      },
+      "phase_energy": {
+        "name": "Phase {phase} energy"
+      },
+      "cp_state": {
+        "name": "CP state"
+      },
+      "error_code": {
+        "name": "Error code"
+      }
+    },
+    "switch": {
+      "automatic_charging": {
+        "name": "Automatic charging"
+      },
+      "automatic_dipswitch": {
+        "name": "Automatic mode dipswitch"
+      },
+      "max_current_dipswitch": {
+        "name": "Max current dipswitch"
+      },
+      "balancing_external_current": {
+        "name": "Balancing external current"
+      }
+    },
+    "number": {
+      "current_limit": {
+        "name": "Current limit"
+      },
+      "led_brightness": {
+        "name": "LED brightness"
+      },
+      "max_station_current": {
+        "name": "Max station current"
+      }
+    },
+    "button": {
+      "charging_authorization": {
+        "name": "Authorize charging"
+      }
+    }
+  }
+}
