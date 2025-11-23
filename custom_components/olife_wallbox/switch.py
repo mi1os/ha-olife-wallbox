@@ -23,10 +23,6 @@ from .const import (
     CONF_SLAVE_ID,
     CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
-    REG_CHARGING_ENABLE_A,
-    REG_CHARGING_ENABLE_B,
-    REG_VERIFY_USER_A,
-    REG_VERIFY_USER_B,
     REG_AUTOMATIC,
     REG_AUTOMATIC_DIPSWITCH_ON,
     REG_MAX_CURRENT_DIPSWITCH_ON,
@@ -69,7 +65,7 @@ async def async_setup_entry(
             return
             
         entities = [
-            OlifeWallboxChargingAuthorizationSwitch(client, name, device_info, device_unique_id),  # Charging authorization control
+            # OlifeWallboxChargingAuthorizationSwitch(client, name, device_info, device_unique_id),  # Moved to button platform
             OlifeWallboxAutomaticGlobalSwitch(client, name, device_info, device_unique_id),  # Automatic mode (main control)
             OlifeWallboxAutomaticDipswitchSwitch(client, name, device_info, device_unique_id),  # Automatic mode dipswitch control
             OlifeWallboxMaxCurrentDipswitchSwitch(client, name, device_info, device_unique_id),  # Max current dipswitch control
@@ -221,31 +217,7 @@ class OlifeWallboxSwitchBase(SwitchEntity):
                 )
             self._available = False
 
-class OlifeWallboxChargingAuthorizationSwitch(OlifeWallboxSwitchBase):
-    """Switch to authorize charging on Olife Energy Wallbox."""
 
-    def __init__(self, client, name, device_info, device_unique_id):
-        """Initialize the switch."""
-        super().__init__(client, name, device_info, device_unique_id)
-        self._register = REG_CHARGING_ENABLE_A if "A" in device_unique_id else REG_CHARGING_ENABLE_B
-        self._attr_entity_category = None  # Main control, visible on main page
-        
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return "Charging Authorization"
-        
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        return f"{self._device_unique_id}_charging_auth_switch"
-        
-    @property
-    def icon(self):
-        """Return the icon to use in the frontend based on the switch state."""
-        if not self._available:
-            return "mdi:ev-station-off"
-        return "mdi:ev-station" if self._is_on else "mdi:ev-station-off"
 
 class OlifeWallboxAutomaticGlobalSwitch(OlifeWallboxSwitchBase):
     """Switch for Olife Energy Wallbox automatic mode setting (global register 5003)."""

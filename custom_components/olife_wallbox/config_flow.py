@@ -21,15 +21,10 @@ from .const import (
     # Sensor groups options
     CONF_ENABLE_PHASE_SENSORS,
     CONF_ENABLE_ERROR_SENSORS,
-    CONF_ENABLE_DAILY_ENERGY,
-    CONF_ENABLE_MONTHLY_ENERGY,
-    CONF_ENABLE_YEARLY_ENERGY,
     # Default option values
     DEFAULT_ENABLE_PHASE_SENSORS,
     DEFAULT_ENABLE_ERROR_SENSORS,
-    DEFAULT_ENABLE_DAILY_ENERGY,
-    DEFAULT_ENABLE_MONTHLY_ENERGY,
-    DEFAULT_ENABLE_YEARLY_ENERGY,
+
     CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
 )
@@ -159,24 +154,7 @@ class OlifeWallboxOptionsFlow(config_entries.OptionsFlow):
                     CONF_ENABLE_ERROR_SENSORS, DEFAULT_ENABLE_ERROR_SENSORS
                 ),
             ): bool,
-            vol.Optional(
-                CONF_ENABLE_DAILY_ENERGY,
-                default=self.entry.options.get(
-                    CONF_ENABLE_DAILY_ENERGY, DEFAULT_ENABLE_DAILY_ENERGY
-                ),
-            ): bool,
-            vol.Optional(
-                CONF_ENABLE_MONTHLY_ENERGY,
-                default=self.entry.options.get(
-                    CONF_ENABLE_MONTHLY_ENERGY, DEFAULT_ENABLE_MONTHLY_ENERGY
-                ),
-            ): bool,
-            vol.Optional(
-                CONF_ENABLE_YEARLY_ENERGY,
-                default=self.entry.options.get(
-                    CONF_ENABLE_YEARLY_ENERGY, DEFAULT_ENABLE_YEARLY_ENERGY
-                ),
-            ): bool,
+
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options)) 

@@ -69,3 +69,6 @@ coverage.xml
 *.cover
 .hypothesis/
 nosetests.xml 
+
+ha_config/
+ha_venv/
