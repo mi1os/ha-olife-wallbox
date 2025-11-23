@@ -3,7 +3,6 @@ import logging
 from datetime import timedelta
 from typing import Optional, Any, Dict
 import asyncio
-import time
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -44,6 +43,7 @@ from .const import (
     DEFAULT_ENABLE_ERROR_SENSORS,
     CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
+    MAX_CONSECUTIVE_ERRORS,
     REG_WALLBOX_EV_STATE_A,
     REG_WALLBOX_EV_STATE_B,
     REG_CURRENT_LIMIT_A,
@@ -124,7 +124,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     """Set up the Olife Energy Wallbox sensors."""
     # Get configuration and data from entry
     entry_data = hass.data[DOMAIN][entry.entry_id]
@@ -161,20 +161,16 @@ async def async_setup_entry(
     )
     
     # Define update coordinator function
-    async def async_update_data():
+    async def async_update_data() -> Dict[str, Any]:
         """Fetch data from the Olife Energy Wallbox."""
         try:
-            # For timing the update
-            start_time = time.time()
-            
-            # Create a ModbusClient instance
-            client = OlifeWallboxModbusClient(host, port, slave_id)
+            # Reuse the existing ModbusClient from hass.data
             if not await client.connect():
                 _LOGGER.error("Failed to connect to Olife Wallbox at %s:%s", host, port)
                 return {}
             
             # Check if the client has too many consecutive errors
-            if client.consecutive_errors > 10:
+            if client.consecutive_errors > MAX_CONSECUTIVE_ERRORS:
                 _LOGGER.warning("Too many consecutive errors (%s), trying to reset connection", client.consecutive_errors)
                 await client.disconnect()
                 await asyncio.sleep(1)
@@ -228,14 +224,11 @@ async def async_setup_entry(
             # - connector_A: left side connector
             # - connector_B: right side connector
             # This standardization reduces confusion and matches physical labeling.
-            data["connector_A"] = {}
             
-            if "B" in connectors_in_use or num_connectors == 1:
-                # For single-connector or B-enabled setups, create connector_B data
-                data["connector_B"] = {}
-            
-            # For single-connector Wallboxes, we always use the B connector registers (right side)
+            # For single-connector Wallboxes, we only use the B connector registers (right side)
             if num_connectors == 1:
+                data["connector_B"] = {}
+                
                 # Read from the B connector registers
                 wallbox_ev_state = await client.read_holding_registers(REG_WALLBOX_EV_STATE_B, 1)
                 current_limit = await client.read_holding_registers(REG_CURRENT_LIMIT_B, 1)
@@ -243,41 +236,33 @@ async def async_setup_entry(
                 max_station_current = await client.read_holding_registers(REG_MAX_STATION_CURRENT, 1)
                 led_pwm = await client.read_holding_registers(REG_LED_PWM, 1)
                 
-                # Store in both connector_A and connector_B for compatibility
+                # Store in connector_B only (no duplication for single-connector)
                 if wallbox_ev_state is not None:
-                    data["connector_A"]["wallbox_ev_state"] = wallbox_ev_state[0]
                     data["connector_B"]["wallbox_ev_state"] = wallbox_ev_state[0]
                 
                 if current_limit is not None:
-                    data["connector_A"]["current_limit"] = current_limit[0]
                     data["connector_B"]["current_limit"] = current_limit[0]
                 
                 if charge_current is not None:
-                    data["connector_A"]["charge_current"] = charge_current[0]
                     data["connector_B"]["charge_current"] = charge_current[0]
                 
                 if max_station_current is not None:
-                    data["connector_A"]["max_station_current"] = max_station_current[0]
                     data["connector_B"]["max_station_current"] = max_station_current[0]
                 
                 if led_pwm is not None:
-                    data["connector_A"]["led_pwm"] = led_pwm[0]
                     data["connector_B"]["led_pwm"] = led_pwm[0]
                 
                 # Read power sum (total power from all phases)
                 power_sum = await client.read_holding_registers(REG_POWER_SUM_B, 1)
                 if power_sum is not None:
-                    data["connector_A"]["charge_power"] = power_sum[0]
                     data["connector_B"]["charge_power"] = power_sum[0]
 
                 # Read the summary energy value (32-bit)
                 energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM_B, 2)
                 if energy_sum_extended is not None and len(energy_sum_extended) >= 2:
                     energy_sum_value = energy_sum_extended[0] + (energy_sum_extended[1] << 16)
-                    data["connector_A"]["energy_sum"] = energy_sum_value
                     data["connector_B"]["energy_sum"] = energy_sum_value
                     # Also update charge_energy with the correct 32-bit value
-                    data["connector_A"]["charge_energy"] = energy_sum_value
                     data["connector_B"]["charge_energy"] = energy_sum_value
                 
                 # Only read error and CP state sensors if enabled
@@ -287,52 +272,54 @@ async def async_setup_entry(
                     cp_state = await client.read_holding_registers(REG_CP_STATE_B, 1)
                     prev_cp_state = await client.read_holding_registers(REG_PREV_CP_STATE_B, 1)
                     
-                    # Store in both connector data structures
+                    # Store in connector_B
                     if error_code is not None:
-                        data["connector_A"]["error_code"] = error_code[0]
                         data["connector_B"]["error_code"] = error_code[0]
                     
                     if cp_state is not None:
-                        data["connector_A"]["cp_state"] = cp_state[0]
                         data["connector_B"]["cp_state"] = cp_state[0]
                     
                     if prev_cp_state is not None:
-                        data["connector_A"]["prev_cp_state"] = prev_cp_state[0]
                         data["connector_B"]["prev_cp_state"] = prev_cp_state[0]
+            else:
+                # Dual-connector setup  
+                data["connector_A"] = {}
+                data["connector_B"] = {}
+                # TODO: Add dual-connector reading logic here if needed
+            
+            # Get phase data based on external wattmeter status
+            if data.get("external_wattmeter_present", False):
+                # Only log this when the status changes to reduce verbosity
+                if not hasattr(async_update_data, 'last_using_external_wattmeter') or \
+                   async_update_data.last_using_external_wattmeter is not True:
+                    _LOGGER.info("Using external wattmeter registers for phase data")
+                    async_update_data.last_using_external_wattmeter = True
                 
-                # Get phase data based on external wattmeter status
-                if data.get("external_wattmeter_present", False):
-                    # Only log this when the status changes to reduce verbosity
-                    if not hasattr(async_update_data, 'last_using_external_wattmeter') or \
-                       async_update_data.last_using_external_wattmeter is not True:
-                        _LOGGER.info("Using external wattmeter registers for phase data")
-                        async_update_data.last_using_external_wattmeter = True
-                    
-                    # Use external wattmeter registers (4200-4219)
-                    power_registers = [REG_EXT_POWER_L1, REG_EXT_POWER_L2, REG_EXT_POWER_L3]
-                    current_registers = [REG_EXT_CURRENT_L1, REG_EXT_CURRENT_L2, REG_EXT_CURRENT_L3]
-                    voltage_registers = [REG_EXT_VOLTAGE_L1, REG_EXT_VOLTAGE_L2, REG_EXT_VOLTAGE_L3]
-                    energy_registers = [REG_EXT_ENERGY_L1, REG_EXT_ENERGY_L2, REG_EXT_ENERGY_L3]
+                # Use external wattmeter registers (4200-4219)
+                power_registers = [REG_EXT_POWER_L1, REG_EXT_POWER_L2, REG_EXT_POWER_L3]
+                current_registers = [REG_EXT_CURRENT_L1, REG_EXT_CURRENT_L2, REG_EXT_CURRENT_L3]
+                voltage_registers = [REG_EXT_VOLTAGE_L1, REG_EXT_VOLTAGE_L2, REG_EXT_VOLTAGE_L3]
+                energy_registers = [REG_EXT_ENERGY_L1, REG_EXT_ENERGY_L2, REG_EXT_ENERGY_L3]
+            else:
+                # Only log this when the status changes to reduce verbosity
+                if not hasattr(async_update_data, 'last_using_external_wattmeter') or \
+                   async_update_data.last_using_external_wattmeter is not False:
+                    _LOGGER.info("Using internal wattmeter registers for phase data")
+                    async_update_data.last_using_external_wattmeter = False
+                
+                # Use internal registers based on connector type
+                if "A" in connectors_in_use and "B" in connectors_in_use:
+                    # For dual-connector wallbox, we show phase data from connector A (left side)
+                    power_registers = [REG_POWER_L1_A, REG_POWER_L2_A, REG_POWER_L3_A]
+                    current_registers = [REG_CURRENT_L1_A, REG_CURRENT_L2_A, REG_CURRENT_L3_A]
+                    voltage_registers = [REG_VOLTAGE_L1_A, REG_VOLTAGE_L2_A, REG_VOLTAGE_L3_A]
+                    energy_registers = [REG_ENERGY_L1_A, REG_ENERGY_L2_A, REG_ENERGY_L3_A]
                 else:
-                    # Only log this when the status changes to reduce verbosity
-                    if not hasattr(async_update_data, 'last_using_external_wattmeter') or \
-                       async_update_data.last_using_external_wattmeter is not False:
-                        _LOGGER.info("Using internal wattmeter registers for phase data")
-                        async_update_data.last_using_external_wattmeter = False
-                    
-                    # Use internal registers based on connector type
-                    if "A" in connectors_in_use and "B" in connectors_in_use:
-                        # For dual-connector wallbox, we show phase data from connector A (left side)
-                        power_registers = [REG_POWER_L1_A, REG_POWER_L2_A, REG_POWER_L3_A]
-                        current_registers = [REG_CURRENT_L1_A, REG_CURRENT_L2_A, REG_CURRENT_L3_A]
-                        voltage_registers = [REG_VOLTAGE_L1_A, REG_VOLTAGE_L2_A, REG_VOLTAGE_L3_A]
-                        energy_registers = [REG_ENERGY_L1_A, REG_ENERGY_L2_A, REG_ENERGY_L3_A]
-                    else:
-                        # For single-connector wallbox, use the B connector (right side)
-                        power_registers = [REG_POWER_L1_B, REG_POWER_L2_B, REG_POWER_L3_B]
-                        current_registers = [REG_CURRENT_L1_B, REG_CURRENT_L2_B, REG_CURRENT_L3_B]
-                        voltage_registers = [REG_VOLTAGE_L1_B, REG_VOLTAGE_L2_B, REG_VOLTAGE_L3_B]
-                        energy_registers = [REG_ENERGY_L1_B, REG_ENERGY_L2_B, REG_ENERGY_L3_B]
+                    # For single-connector wallbox, use the B connector (right side)
+                    power_registers = [REG_POWER_L1_B, REG_POWER_L2_B, REG_POWER_L3_B]
+                    current_registers = [REG_CURRENT_L1_B, REG_CURRENT_L2_B, REG_CURRENT_L3_B]
+                    voltage_registers = [REG_VOLTAGE_L1_B, REG_VOLTAGE_L2_B, REG_VOLTAGE_L3_B]
+                    energy_registers = [REG_ENERGY_L1_B, REG_ENERGY_L2_B, REG_ENERGY_L3_B]
             
             # Read the phase data
             try:
@@ -685,7 +672,6 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
     def __init__(self, coordinator, name, key, device_info, device_unique_id):
         """Initialize the sensor."""
         super().__init__(coordinator, name, key, device_info, device_unique_id)
-        self._raw_state = None
         self._error_count = 0
         self._attr_entity_category = None  # Keep on main screen
         
@@ -896,7 +882,7 @@ class OlifeWallboxCPStateSensor(OlifeWallboxSensor):
         super().__init__(coordinator, name, key, device_info, device_unique_id)
         self._raw_state = None
         self._error_count = 0
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to diagnostic tab
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Diagnostic sensor
         
     def _should_log_error(self):
         """Determine whether to log an error based on error count."""
