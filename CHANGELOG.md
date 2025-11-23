@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/mi1os/ha-olife-wallbox/compare/v1.0.0...v1.1.0) (2025-11-23)
+
+
+### Features
+
+* add solar excess charging with automatic mode integration ([6956667](https://github.com/mi1os/ha-olife-wallbox/commit/6956667b6385d0692db9e1339b1219c2d8ebe344))
+
 # [1.0.0](https://github.com/mi1os/ha-olife-wallbox/compare/v0.9.8...v1.0.0) (2025-11-23)
 
 
