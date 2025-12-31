@@ -132,18 +132,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if "num_connectors" not in device_info:
             device_info["num_connectors"] = 1
             device_info["connectors_in_use"] = ["B"]
-            
+
         if "sw_version" not in device_info:
             device_info["sw_version"] = "Unknown"
-            
+
         if "hw_version" not in device_info:
             device_info["hw_version"] = "Unknown"
+
+        # Clean up device_info to only include fields needed by entities
+        # Remove internal fields that aren't valid for DeviceInfo
+        clean_device_info = {
+            "model": device_info.get("model", "Wallbox"),
+            "sw_version": device_info.get("sw_version", "Unknown"),
+            "hw_version": device_info.get("hw_version", "Unknown"),
+            "serial_number": device_info.get("serial_number"),
+        }
         
         # Store the client and device info for platform access
         hass.data.setdefault(DOMAIN, {})
         hass.data[DOMAIN][entry.entry_id] = {
             "client": client,
-            "device_info": device_info,
+            "device_info": clean_device_info,
             "read_only": read_only,
         }
 
