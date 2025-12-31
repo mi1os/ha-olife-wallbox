@@ -157,9 +157,9 @@ async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool)
                                 "homeassistant", "update_entity", {"entity_id": entity}
                             )
                         break
-        else:
-            action = "enable" if enable else "disable"
-            _LOGGER.error("Failed to %s charging for device %s", action, device_id)
+            else:
+                action = "enable" if enable else "disable"
+                _LOGGER.error("Failed to %s charging for device %s", action, device_id)
     except Exception as ex:
         _LOGGER.error("Error setting charging state: %s", ex)
         raise
