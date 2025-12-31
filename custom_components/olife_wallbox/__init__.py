@@ -1,6 +1,7 @@
 """The Olife Energy Wallbox integration."""
 import asyncio
 import logging
+from typing import Optional
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -37,6 +38,21 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _normalize_connector_count(raw_value: Optional[int]) -> tuple[int, list[str]]:
+    """Validate reported connector count and map to connectors."""
+    if raw_value is None:
+        return 1, ["B"]
+    if raw_value <= 0:
+        _LOGGER.warning("Device reported %s connectors; defaulting to single connector", raw_value)
+        return 1, ["B"]
+    if raw_value == 1:
+        return 1, ["B"]
+    if raw_value == 2:
+        return 2, ["A", "B"]
+    _LOGGER.warning("Device reported %s connectors; restricting to first two connectors", raw_value)
+    return 2, ["A", "B"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Olife Energy Wallbox from a config entry."""
@@ -99,13 +115,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 device_info["sw_version"] = f"{sw_major}.{sw_minor:02d}"
                 
             if num_connectors is not None and len(num_connectors) >= 1:
-                device_info["num_connectors"] = num_connectors[0]
-                
-                # For single-connector wallboxes, we always use the B registers
-                if num_connectors[0] == 1:
-                    device_info["connectors_in_use"] = ["B"]
-                else:
-                    device_info["connectors_in_use"] = ["A", "B"]
+                raw_count = num_connectors[0]
+                connector_count, connectors_in_use = _normalize_connector_count(raw_count)
+                device_info["num_connectors"] = connector_count
+                device_info["connectors_in_use"] = connectors_in_use
                 
             if sn_first is not None and sn_last is not None:
                 if len(sn_first) >= 1 and len(sn_last) >= 1:
