@@ -30,6 +30,7 @@ from .const import (
     ERROR_LOG_THRESHOLD
 )
 from .modbus_client import OlifeWallboxModbusClient
+from .helpers import parse_device_unique_id, DeviceUniqueIdError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,7 +101,12 @@ class OlifeWallboxSwitchBase(SwitchEntity):
         """Return device information."""
         # Filter device_info to only include valid DeviceInfo parameters
         # Construct the identifiers from device_unique_id
-        host, port, slave_id = self._device_unique_id.split("_")
+        try:
+            host, port, slave_id = parse_device_unique_id(self._device_unique_id)
+        except DeviceUniqueIdError as exc:
+            _LOGGER.error("Invalid device_unique_id format: %s", exc)
+            # Fallback to prevent crash
+            host, port, slave_id = "unknown", 0, 0
         return {
             "identifiers": {(DOMAIN, self._device_unique_id)},
             "name": self._name,
@@ -592,7 +598,12 @@ class OlifeWallboxSolarModeSwitch(SwitchEntity):
         """Return device information."""
         # Filter device_info to only include valid DeviceInfo parameters
         # Construct the identifiers from device_unique_id
-        host, port, slave_id = self._device_unique_id.split("_")
+        try:
+            host, port, slave_id = parse_device_unique_id(self._device_unique_id)
+        except DeviceUniqueIdError as exc:
+            _LOGGER.error("Invalid device_unique_id format: %s", exc)
+            # Fallback to prevent crash
+            host, port, slave_id = "unknown", 0, 0
         return {
             "identifiers": {(DOMAIN, self._device_unique_id)},
             "name": self._name,

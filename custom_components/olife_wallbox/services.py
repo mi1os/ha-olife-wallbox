@@ -26,6 +26,7 @@ from .const import (
     REG_LED_PWM,
 )
 from .modbus_client import OlifeWallboxModbusClient
+from .helpers import parse_device_unique_id, DeviceUniqueIdError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,12 +106,12 @@ async def _get_client_for_device(hass: HomeAssistant, device_id: str) -> OlifeWa
         
     # Split domain_id to get connection details
     try:
-        host, port, slave_id = domain_id.split("_")
-        port = int(port)
-        slave_id = int(slave_id)
+        host, port, slave_id = parse_device_unique_id(domain_id)
+    except DeviceUniqueIdError as exc:
+        raise ValueError(f"Invalid device identifier format: {domain_id}") from exc
     except (ValueError, TypeError):
         raise ValueError(f"Invalid device identifier format: {domain_id}")
-        
+
     client = OlifeWallboxModbusClient(host, port, slave_id)
     return client
 
