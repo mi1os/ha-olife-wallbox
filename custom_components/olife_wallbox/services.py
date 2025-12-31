@@ -71,8 +71,18 @@ RESET_COUNTERS_SCHEMA = WALLBOX_SERVICE_SCHEMA.extend(
     }
 )
 
+def _validate_device_identifier(device_id: str) -> None:
+    """Validate device identifier format."""
+    if not device_id or not isinstance(device_id, str):
+        raise ValueError(f"Invalid device ID: {device_id}")
+    if len(device_id) < 3:
+        raise ValueError(f"Device ID too short: {device_id}")
+
 async def _get_client_for_device(hass: HomeAssistant, device_id: str) -> OlifeWallboxModbusClient:
     """Get the ModbusClient for a device ID."""
+    # Validate device ID first
+    _validate_device_identifier(device_id)
+
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     
