@@ -1,3 +1,15 @@
+## [1.1.2](https://github.com/mi1os/ha-olife-wallbox/compare/v1.1.1...v1.1.2) (2025-12-31)
+
+
+### Bug Fixes
+
+* add async lock to prevent race condition in solar control (MV-24) ([34285a1](https://github.com/mi1os/ha-olife-wallbox/commit/34285a199e1f0ed06d95014a5974b7b53999f600))
+* add connection lock to prevent race conditions (MV-21) ([23b00cc](https://github.com/mi1os/ha-olife-wallbox/commit/23b00cc309a770d15faa7351435a3fc1319f6c4a))
+* add context manager for proper Modbus client cleanup (MV-22) ([685de4d](https://github.com/mi1os/ha-olife-wallbox/commit/685de4dcb1ebe5a44c60ea37059a9d361d4927b4))
+* add device_unique_id validation to prevent IndexError (MV-20) ([3fdb87b](https://github.com/mi1os/ha-olife-wallbox/commit/3fdb87b78cc1268fc5628bf7362bd96f55ff6e05))
+* add validation for num_connectors parameter (MV-23) ([5cef0bf](https://github.com/mi1os/ha-olife-wallbox/commit/5cef0bfe728f300654c4e057dab995b5720bd2ca))
+* correct indentation in services.py error handling ([7569adc](https://github.com/mi1os/ha-olife-wallbox/commit/7569adcf7107a2c265134b7effe15bbefc2704f4))
+
 ## [1.1.1](https://github.com/mi1os/ha-olife-wallbox/compare/v1.1.0...v1.1.1) (2025-12-31)
 
 
