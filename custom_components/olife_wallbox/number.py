@@ -44,32 +44,28 @@ async def async_setup_entry(
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
     slave_id = entry.data[CONF_SLAVE_ID]
-    
+
     try:
-        client = OlifeWallboxModbusClient(host, port, slave_id)
-    
-        # Create a unique ID for the device
+        # Use the shared client from hass.data instead of creating a new one
+        entry_data = hass.data[DOMAIN][entry.entry_id]
+        client = entry_data["client"]
+        device_info = entry_data["device_info"]
         device_unique_id = f"{host}_{port}_{slave_id}"
         
-        # Create device info
-        device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_unique_id)},
-            name=name,
-            manufacturer="Olife Energy",
-            model="Wallbox",
-            sw_version="1.0",  # You can update this with actual firmware version if available
-        )
-        
         read_only = entry.options.get(CONF_READ_ONLY, DEFAULT_READ_ONLY)
-        
-        entities = [
-            OlifeWallboxCurrentLimit(client, name, device_info, device_unique_id),
-            OlifeWallboxLedPwm(client, name, device_info, device_unique_id),
-            OlifeWallboxMaxStationCurrent(client, name, device_info, device_unique_id),
-            OlifeWallboxSolarOffset(hass, entry.entry_id, name, device_info, device_unique_id),
-        ]
-        
-        async_add_entities(entities)
+
+        # Only create entities if not in read-only mode
+        if not read_only:
+            entities = [
+                OlifeWallboxCurrentLimit(client, name, device_info, device_unique_id),
+                OlifeWallboxLedPwm(client, name, device_info, device_unique_id),
+                OlifeWallboxMaxStationCurrent(client, name, device_info, device_unique_id),
+                OlifeWallboxSolarOffset(hass, entry.entry_id, name, device_info, device_unique_id),
+            ]
+
+            async_add_entities(entities)
+        else:
+            _LOGGER.info("Number entities disabled in read-only mode for %s", name)
     except Exception as ex:
         _LOGGER.error("Error setting up Olife Wallbox number platform: %s", ex)
 
@@ -176,9 +172,9 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
             # REG_CURRENT_LIMIT_A (2007) and REG_CURRENT_LIMIT_B (2107) are read-only
             # We should use REG_CLOUD_CURRENT_LIMIT_A (2006) or REG_CLOUD_CURRENT_LIMIT_B (2106)
             if await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, scaled_value):
-                self._value = value
+                self._value = scaled_value  # Use the clamped value, not the original
                 self._error_count = 0
-                _LOGGER.info("Current limit set to: %s", value)
+                _LOGGER.info("Current limit set to: %s", scaled_value)
                 self.async_write_ha_state()
             else:
                 self._error_count += 1

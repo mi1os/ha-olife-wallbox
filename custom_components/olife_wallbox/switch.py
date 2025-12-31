@@ -42,27 +42,19 @@ async def async_setup_entry(
         host = entry.data[CONF_HOST]
         port = entry.data[CONF_PORT]
         slave_id = entry.data[CONF_SLAVE_ID]
-        
-        client = OlifeWallboxModbusClient(host, port, slave_id)
-        
-        # Create a unique ID for the device
-        device_unique_id = f"{host}_{port}_{slave_id}"
-        
-        # Create device info
-        device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_unique_id)},
-            name=name,
-            manufacturer="Olife Energy",
-            model="Wallbox",
-            sw_version="1.0",  # You can update this with actual firmware version if available
-        )
-        
+
         # Check if we're in read-only mode
         read_only = entry.options.get(CONF_READ_ONLY, DEFAULT_READ_ONLY)
-        
+
         if read_only:
             _LOGGER.info("Running in read-only mode, no switch entities will be created")
             return
+
+        # Use the shared client and device info from hass.data
+        entry_data = hass.data[DOMAIN][entry.entry_id]
+        client = entry_data["client"]
+        device_info = entry_data["device_info"]
+        device_unique_id = f"{host}_{port}_{slave_id}"
             
         entities = [
             # OlifeWallboxChargingAuthorizationSwitch(client, name, device_info, device_unique_id),  # Moved to button platform
