@@ -111,7 +111,8 @@ async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool)
             _LOGGER.info("Charging %s for device %s", action, device_id)
             
             # Update switch state immediately for better responsiveness
-            for entity_id in er.async_get(hass).entities.values():
+            entity_registry = er.async_get(hass)
+            for entity_id in entity_registry.entities.values():
                 if (
                     entity_id.domain == "switch"
                     and entity_id.unique_id
