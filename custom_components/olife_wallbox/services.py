@@ -11,6 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -243,7 +244,7 @@ async def _reset_energy_counters(hass: HomeAssistant, device_id: str,
                     hass.bus.async_fire(f"{DOMAIN}_reset_counter", {
                         "entity_id": entity,
                         "device_id": device_id,
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": dt_util.utcnow().isoformat()
                     })
                     _LOGGER.info("Reset event sent for %s", entity)
 
