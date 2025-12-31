@@ -83,12 +83,17 @@ class OlifeSolarOptimizer:
             # Parse solar power value (Watts)
             # Positive = Export/Excess, Negative = Import
             solar_power = float(state.state)
-            
+
             # Calculate available current per phase
             # Power = Voltage * Current * Phases
             # Current = Power / (Voltage * Phases)
             voltage = 230  # Assuming 230V
-            
+
+            # Validate charging phases to prevent division by zero
+            if self._charging_phases <= 0:
+                _LOGGER.error("Invalid charging phases configuration: %s", self._charging_phases)
+                return
+
             # Calculate current from excess power
             calculated_current = solar_power / (voltage * self._charging_phases)
             
