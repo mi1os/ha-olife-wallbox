@@ -1,6 +1,7 @@
 """Services for Olife Energy Wallbox integration."""
 import logging
 import re
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Set
 
 import voluptuous as vol
@@ -115,36 +116,47 @@ async def _get_client_for_device(hass: HomeAssistant, device_id: str) -> OlifeWa
     client = OlifeWallboxModbusClient(host, port, slave_id)
     return client
 
+
+@asynccontextmanager
+async def async_modbus_client(hass: HomeAssistant, device_id: str):
+    """Context manager that owns the lifetime of short-lived clients."""
+    client = await _get_client_for_device(hass, device_id)
+    try:
+        await client.connect()
+        yield client
+    finally:
+        await client.disconnect()
+
 async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool) -> None:
     """Set the charging state of a wallbox."""
     try:
-        client = await _get_client_for_device(hass, device_id)
-        value = 1 if enable else 0
-        # For single-connector devices, always use B register
-        # TODO: Add connector parameter for dual-connector support
-        register = REG_CHARGING_ENABLE_B
-        if await client.write_register(register, value):
-            action = "enabled" if enable else "disabled"
-            _LOGGER.info("Charging %s for device %s", action, device_id)
-            
-            # Update switch state immediately for better responsiveness
-            entity_registry = er.async_get(hass)
-            for entity_id in entity_registry.entities.values():
-                if (
-                    entity_id.domain == "switch"
-                    and entity_id.unique_id
-                    and device_id in entity_id.unique_id
-                    and "charging_switch" in entity_id.unique_id
-                ):
-                    # Force entity state updates for better responsiveness
-                    entity = entity_registry.async_get_entity_id(
-                        "switch", DOMAIN, entity_id.unique_id
-                    )
-                    if entity and hass.states.get(entity):
-                        await hass.services.async_call(
-                            "homeassistant", "update_entity", {"entity_id": entity}
+        async with async_modbus_client(hass, device_id) as client:
+            value = 1 if enable else 0
+            # For single-connector devices, always use B register
+            # TODO: Add connector parameter for dual-connector support
+            register = REG_CHARGING_ENABLE_B
+            if await client.write_register(register, value):
+                action = "enabled" if enable else "disabled"
+                _LOGGER.info("Charging %s for device %s", action, device_id)
+
+                # Update switch state immediately for better responsiveness
+                entity_registry = er.async_get(hass)
+                for entity_id in entity_registry.entities.values():
+                    if (
+                        entity_id.domain == "switch"
+                        and entity_id.unique_id
+                        and device_id in entity_id.unique_id
+                        and "charging_switch" in entity_id.unique_id
+                    ):
+                        # Force entity state updates for better responsiveness
+                        entity = entity_registry.async_get_entity_id(
+                            "switch", DOMAIN, entity_id.unique_id
                         )
-                    break
+                        if entity and hass.states.get(entity):
+                            await hass.services.async_call(
+                                "homeassistant", "update_entity", {"entity_id": entity}
+                            )
+                        break
         else:
             action = "enable" if enable else "disable"
             _LOGGER.error("Failed to %s charging for device %s", action, device_id)
@@ -155,34 +167,33 @@ async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool)
 async def _set_current_limit(hass: HomeAssistant, device_id: str, current_limit: int) -> None:
     """Set the current limit of a wallbox."""
     try:
-        client = await _get_client_for_device(hass, device_id)
-        # Use cloud registers for setting current limit (not read-only)
-        # REG_CURRENT_LIMIT_A/B are read-only, use REG_CLOUD_CURRENT_LIMIT_A/B instead
-        if await client.write_register(REG_CLOUD_CURRENT_LIMIT_B, current_limit):
-            _LOGGER.info("Current limit set to %s A for device %s", current_limit, device_id)
-            
-            # Update number state for better responsiveness
-            entity_registry = er.async_get(hass)
-            for entity_id in entity_registry.entities.values():
-                if (
-                    entity_id.domain == "number"
-                    and entity_id.unique_id
-                    and device_id in entity_id.unique_id
-                    and "current_limit" in entity_id.unique_id
-                ):
-                    entity = entity_registry.async_get_entity_id(
-                        "number", DOMAIN, entity_id.unique_id
-                    )
-                    if entity and hass.states.get(entity):
-                        await hass.services.async_call(
-                            "homeassistant", "update_entity", {"entity_id": entity}
+        async with async_modbus_client(hass, device_id) as client:
+            # Use cloud registers for setting current limit (not read-only)
+            # REG_CURRENT_LIMIT_A/B are read-only, use REG_CLOUD_CURRENT_LIMIT_A/B instead
+            if await client.write_register(REG_CLOUD_CURRENT_LIMIT_B, current_limit):
+                _LOGGER.info("Current limit set to %s A for device %s", current_limit, device_id)
+
+                # Update number state for better responsiveness
+                entity_registry = er.async_get(hass)
+                for entity_id in entity_registry.entities.values():
+                    if (
+                        entity_id.domain == "number"
+                        and entity_id.unique_id
+                        and device_id in entity_id.unique_id
+                        and "current_limit" in entity_id.unique_id
+                    ):
+                        entity = entity_registry.async_get_entity_id(
+                            "number", DOMAIN, entity_id.unique_id
                         )
-                    break
-        else:
-            _LOGGER.error("Failed to set current limit for device %s", device_id)
+                        if entity and hass.states.get(entity):
+                            await hass.services.async_call(
+                                "homeassistant", "update_entity", {"entity_id": entity}
+                            )
+                        break
+            else:
+                _LOGGER.error("Failed to set current limit for device %s", device_id)
     except Exception as ex:
-        _LOGGER.error("Error setting current limit: %s", ex)
-        raise
+        _LOGGER.error("Error setting current limit for device %s: %s", device_id, ex)
 
 async def _set_max_current(hass: HomeAssistant, device_id: str, max_current: int) -> None:
     """
@@ -195,29 +206,29 @@ async def _set_max_current(hass: HomeAssistant, device_id: str, max_current: int
 async def _set_led_brightness(hass: HomeAssistant, device_id: str, brightness: int) -> None:
     """Set the LED brightness of a wallbox."""
     try:
-        client = await _get_client_for_device(hass, device_id)
-        if await client.write_register(REG_LED_PWM, brightness):
-            _LOGGER.info("LED brightness set to %s for device %s", brightness, device_id)
-            
-            # Update number state for better responsiveness
-            entity_registry = er.async_get(hass)
-            for entity_id in entity_registry.entities.values():
-                if (
-                    entity_id.domain == "number"
-                    and entity_id.unique_id
-                    and device_id in entity_id.unique_id
-                    and "led_pwm" in entity_id.unique_id
-                ):
-                    entity = entity_registry.async_get_entity_id(
-                        "number", DOMAIN, entity_id.unique_id
-                    )
-                    if entity and hass.states.get(entity):
-                        await hass.services.async_call(
-                            "homeassistant", "update_entity", {"entity_id": entity}
+        async with async_modbus_client(hass, device_id) as client:
+            if await client.write_register(REG_LED_PWM, brightness):
+                _LOGGER.info("LED brightness set to %s for device %s", brightness, device_id)
+
+                # Update number state for better responsiveness
+                entity_registry = er.async_get(hass)
+                for entity_id in entity_registry.entities.values():
+                    if (
+                        entity_id.domain == "number"
+                        and entity_id.unique_id
+                        and device_id in entity_id.unique_id
+                        and "led_pwm" in entity_id.unique_id
+                    ):
+                        entity = entity_registry.async_get_entity_id(
+                            "number", DOMAIN, entity_id.unique_id
                         )
-                    break
-        else:
-            _LOGGER.error("Failed to set LED brightness for device %s", device_id)
+                        if entity and hass.states.get(entity):
+                            await hass.services.async_call(
+                                "homeassistant", "update_entity", {"entity_id": entity}
+                            )
+                        break
+            else:
+                _LOGGER.error("Failed to set LED brightness for device %s", device_id)
     except Exception as ex:
         _LOGGER.error("Error setting LED brightness: %s", ex)
         raise
