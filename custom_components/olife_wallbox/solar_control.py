@@ -82,7 +82,22 @@ class OlifeSolarOptimizer:
         try:
             # Parse solar power value (Watts)
             # Positive = Export/Excess, Negative = Import
-            solar_power = float(state.state)
+            # Validate state before conversion
+            if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                _LOGGER.debug("Solar power sensor is %s, skipping calculation", state.state)
+                return
+
+            # Attempt conversion with validation
+            try:
+                solar_power = float(state.state)
+            except (ValueError, TypeError) as e:
+                _LOGGER.error("Invalid solar power value '%s': %s", state.state, e)
+                return
+
+            # Additional validation for reasonable values
+            if abs(solar_power) > 100000:  # Sanity check for > 100kW
+                _LOGGER.warning("Unusually high solar power value: %s W", solar_power)
+                return
 
             # Calculate available current per phase
             # Power = Voltage * Current * Phases
