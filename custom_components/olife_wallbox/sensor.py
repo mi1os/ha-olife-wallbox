@@ -348,9 +348,13 @@ async def async_setup_entry(
                     if power_val is not None:
                         key = f"power_l{phase_num}"
                         if data.get("external_wattmeter_present", False):
-                            # Store in both connector data structures since it's an external meter
-                            data["connector_A"][key] = power_val[0]
-                            data["connector_B"][key] = power_val[0]
+                            # For external wattmeter on single-connector, only store in B
+                            if num_connectors == 1:
+                                data["connector_B"][key] = power_val[0]
+                            else:
+                                # Store in both connector data structures since it's an external meter
+                                data["connector_A"][key] = power_val[0]
+                                data["connector_B"][key] = power_val[0]
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if power_reg in [REG_POWER_L1_A, REG_POWER_L2_A, REG_POWER_L3_A]:
@@ -369,9 +373,13 @@ async def async_setup_entry(
                     if current_val is not None:
                         key = f"current_l{phase_num}"
                         if data.get("external_wattmeter_present", False):
-                            # Store in both connector data structures since it's an external meter
-                            data["connector_A"][key] = current_val[0]
-                            data["connector_B"][key] = current_val[0]
+                            # For external wattmeter on single-connector, only store in B
+                            if num_connectors == 1:
+                                data["connector_B"][key] = current_val[0]
+                            else:
+                                # Store in both connector data structures since it's an external meter
+                                data["connector_A"][key] = current_val[0]
+                                data["connector_B"][key] = current_val[0]
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if current_reg in [REG_CURRENT_L1_A, REG_CURRENT_L2_A, REG_CURRENT_L3_A]:
@@ -390,9 +398,13 @@ async def async_setup_entry(
                     if voltage_val is not None:
                         key = f"voltage_l{phase_num}"
                         if data.get("external_wattmeter_present", False):
-                            # Store in both connector data structures since it's an external meter
-                            data["connector_A"][key] = voltage_val[0]
-                            data["connector_B"][key] = voltage_val[0]
+                            # For external wattmeter on single-connector, only store in B
+                            if num_connectors == 1:
+                                data["connector_B"][key] = voltage_val[0]
+                            else:
+                                # Store in both connector data structures since it's an external meter
+                                data["connector_A"][key] = voltage_val[0]
+                                data["connector_B"][key] = voltage_val[0]
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if voltage_reg in [REG_VOLTAGE_L1_A, REG_VOLTAGE_L2_A, REG_VOLTAGE_L3_A]:
@@ -412,9 +424,13 @@ async def async_setup_entry(
                         energy_val_32bit = ((energy_val[1] & 0xFFFF) << 16) | (energy_val[0] & 0xFFFF)
                         key = f"energy_l{phase_num}"
                         if data.get("external_wattmeter_present", False):
-                            # Store in both connector data structures since it's an external meter
-                            data["connector_A"][key] = energy_val_32bit
-                            data["connector_B"][key] = energy_val_32bit
+                            # For external wattmeter on single-connector, only store in B
+                            if num_connectors == 1:
+                                data["connector_B"][key] = energy_val_32bit
+                            else:
+                                # Store in both connector data structures since it's an external meter
+                                data["connector_A"][key] = energy_val_32bit
+                                data["connector_B"][key] = energy_val_32bit
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if energy_reg in [REG_ENERGY_L1_A, REG_ENERGY_L2_A, REG_ENERGY_L3_A]:
@@ -437,26 +453,38 @@ async def async_setup_entry(
                     total_energy = await client.read_holding_registers(REG_EXT_ENERGY_TOTAL, 2)  # Read as 32-bit
                     if total_energy is not None and len(total_energy) >= 2:
                         total_energy_32bit = ((total_energy[1] & 0xFFFF) << 16) | (total_energy[0] & 0xFFFF)
-                        # Store in both connector data structures since it's an external meter
-                        data["connector_A"]["total_energy_ext"] = total_energy_32bit
-                        data["connector_B"]["total_energy_ext"] = total_energy_32bit
+                        # For external wattmeter on single-connector, only store in B
+                        if num_connectors == 1:
+                            data["connector_B"]["total_energy_ext"] = total_energy_32bit
+                        else:
+                            # Store in both connector data structures since it's an external meter
+                            data["connector_A"]["total_energy_ext"] = total_energy_32bit
+                            data["connector_B"]["total_energy_ext"] = total_energy_32bit
                         _LOGGER.debug("Read total energy from external wattmeter: %s mWh", total_energy_32bit)
                         
                     # Read saved energy
                     saved_energy = await client.read_holding_registers(REG_EXT_ENERGY_SAVED_FLASH, 2)  # Read as 32-bit
                     if saved_energy is not None and len(saved_energy) >= 2:
                         saved_energy_32bit = ((saved_energy[1] & 0xFFFF) << 16) | (saved_energy[0] & 0xFFFF)
-                        # Store in both connector data structures since it's an external meter
-                        data["connector_A"]["saved_energy_ext"] = saved_energy_32bit
-                        data["connector_B"]["saved_energy_ext"] = saved_energy_32bit
+                        # For external wattmeter on single-connector, only store in B
+                        if num_connectors == 1:
+                            data["connector_B"]["saved_energy_ext"] = saved_energy_32bit
+                        else:
+                            # Store in both connector data structures since it's an external meter
+                            data["connector_A"]["saved_energy_ext"] = saved_energy_32bit
+                            data["connector_B"]["saved_energy_ext"] = saved_energy_32bit
                         _LOGGER.debug("Read saved energy from external wattmeter: %s mWh", saved_energy_32bit)
                         
                     # Read total power
                     total_power = await client.read_holding_registers(REG_EXT_POWER_SUM, 1)
                     if total_power is not None:
-                        # Store in both connector data structures since it's an external meter
-                        data["connector_A"]["power_sum"] = total_power[0]
-                        data["connector_B"]["power_sum"] = total_power[0]
+                        # For external wattmeter on single-connector, only store in B
+                        if num_connectors == 1:
+                            data["connector_B"]["power_sum"] = total_power[0]
+                        else:
+                            # Store in both connector data structures since it's an external meter
+                            data["connector_A"]["power_sum"] = total_power[0]
+                            data["connector_B"]["power_sum"] = total_power[0]
                         _LOGGER.debug("Read total power from external wattmeter: %s W", total_power[0])
                 except Exception as ex:
                     _LOGGER.error("Error reading additional data from external wattmeter: %s", ex)
