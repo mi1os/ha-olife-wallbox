@@ -1,3 +1,25 @@
+## [1.1.1](https://github.com/mi1os/ha-olife-wallbox/compare/v1.1.0...v1.1.1) (2025-12-31)
+
+
+### Bug Fixes
+
+* add device identifier validation (MV-19) ([3c26285](https://github.com/mi1os/ha-olife-wallbox/commit/3c262851921c41f845a39d62a179330d7ed73d00))
+* add validation for float conversion in solar control (MV-16) ([1461925](https://github.com/mi1os/ha-olife-wallbox/commit/14619256da42ea0288ea33bbd1c268a3486253d3))
+* complete remaining medium and low priority issues ([11c2dfd](https://github.com/mi1os/ha-olife-wallbox/commit/11c2dfd9064143ff27bb625438fbea2041cf93ef))
+* connection state race condition in modbus client (MV-15) ([1033fc3](https://github.com/mi1os/ha-olife-wallbox/commit/1033fc34d937fdac0ee5706c6bcbe4d4471ddc3a))
+* construct device info with required fields ([fb1b218](https://github.com/mi1os/ha-olife-wallbox/commit/fb1b218d4d6ed44b49bab86d0e9922bb027279b7))
+* device_info property in OlifeWallboxSolarModeSwitch ([331e961](https://github.com/mi1os/ha-olife-wallbox/commit/331e9610b0537713ca68bfe8c8ed61a575a89a36))
+* filter device_info to valid DeviceInfo parameters ([7e6194f](https://github.com/mi1os/ha-olife-wallbox/commit/7e6194f2043306abd18389fef63290120d380d89))
+* KeyError connector_A when external wattmeter present on single-connector (MV-3) ([b97ffe5](https://github.com/mi1os/ha-olife-wallbox/commit/b97ffe5d6f465d2bb794a74ef010f4cd40542617))
+* memory leak in sensor coordinator initialization (MV-17) ([e0d94e3](https://github.com/mi1os/ha-olife-wallbox/commit/e0d94e38d59fa2bc98b50bb6671f37fbb11b82f9))
+* missing datetime import in reset_energy_counters service (MV-1) ([96ffacf](https://github.com/mi1os/ha-olife-wallbox/commit/96ffacf57427cc65d63b3256e924c3246dc695ac))
+* multiple Modbus clients instantiated instead of sharing one (MV-7) ([d1c02f6](https://github.com/mi1os/ha-olife-wallbox/commit/d1c02f672ec26c3821660abd3610295cdc9497c1))
+* prevent division by zero in solar control (MV-13) ([e167075](https://github.com/mi1os/ha-olife-wallbox/commit/e167075a0321dca4f28f83446b55bd634961c841))
+* remove num_connectors from device_info passed to entities ([f80ab47](https://github.com/mi1os/ha-olife-wallbox/commit/f80ab4752735a6785bfb3f1baf9ed6e9f654c31a))
+* set_current_limit service writes to wrong register (MV-5) ([a983c3a](https://github.com/mi1os/ha-olife-wallbox/commit/a983c3ad5eadd8705853d8a8803db9057f38c2cd))
+* undefined entity_registry in services module (MV-14) ([52edaba](https://github.com/mi1os/ha-olife-wallbox/commit/52edaba80c08e3b1a2eb9c594c655c31604087e1))
+* wrong register used for start/stop charge service (MV-4) ([b743017](https://github.com/mi1os/ha-olife-wallbox/commit/b743017bbd6735317e3b64ed743064e8ade523f5))
+
 # [1.1.0](https://github.com/mi1os/ha-olife-wallbox/compare/v1.0.0...v1.1.0) (2025-11-23)
 
 
