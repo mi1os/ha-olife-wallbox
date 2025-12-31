@@ -35,6 +35,7 @@ class OlifeSolarOptimizer:
         self._max_station_current_entity_id = max_station_current_entity_id
         self._remove_listener = None
         self._current_limit = 6  # Default start
+        self._current_limit_lock = asyncio.Lock()
         
     def set_offset(self, offset: int):
         """Update the offset value at runtime."""
@@ -151,22 +152,23 @@ class OlifeSolarOptimizer:
             # We only update if the value has changed to avoid spamming Modbus
             # But we also need to be careful about not updating too frequently if solar fluctuates wildly.
             # For now, we implement basic change detection.
-            
-            if final_current != self._current_limit:
-                _LOGGER.debug(
-                    "Solar update: Power=%s W, Calc=%s A, Offset=%s A, Target=%s A, Final=%s A",
-                    solar_power, calculated_current, self._min_current_offset, target_current, final_current
-                )
-                
-                # Write to Modbus
-                # Using REG_CLOUD_CURRENT_LIMIT_B as per number.py implementation
-                # We might need to respect the connector selection logic from number.py if we want to be 100% correct for all models
-                # But for now assuming Connector B is the primary controllable one as per existing code
-                
-                # Note: We are not checking if the write was successful here to keep it simple async
-                # In a robust implementation we might want to retry or handle errors
-                await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, final_current)
-                self._current_limit = final_current
+
+            async with self._current_limit_lock:
+                if final_current != self._current_limit:
+                    _LOGGER.debug(
+                        "Solar update: Power=%s W, Calc=%s A, Offset=%s A, Target=%s A, Final=%s A",
+                        solar_power, calculated_current, self._min_current_offset, target_current, final_current
+                    )
+
+                    # Write to Modbus
+                    # Using REG_CLOUD_CURRENT_LIMIT_B as per number.py implementation
+                    # We might need to respect the connector selection logic from number.py if we want to be 100% correct for all models
+                    # But for now assuming Connector B is the primary controllable one as per existing code
+
+                    # Note: We are not checking if the write was successful here to keep it simple async
+                    # In a robust implementation we might want to retry or handle errors
+                    await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, final_current)
+                    self._current_limit = final_current
                 
         except ValueError:
             _LOGGER.warning("Invalid solar power value: %s", state.state)
