@@ -109,7 +109,10 @@ async def _set_charging_state(hass: HomeAssistant, device_id: str, enable: bool)
     try:
         client = await _get_client_for_device(hass, device_id)
         value = 1 if enable else 0
-        if await client.write_register(REG_CHARGING_ENABLE_A if enable else REG_CHARGING_ENABLE_B, value):
+        # For single-connector devices, always use B register
+        # TODO: Add connector parameter for dual-connector support
+        register = REG_CHARGING_ENABLE_B
+        if await client.write_register(register, value):
             action = "enabled" if enable else "disabled"
             _LOGGER.info("Charging %s for device %s", action, device_id)
             

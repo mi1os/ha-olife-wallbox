@@ -132,7 +132,9 @@ class OlifeWallboxChargingAuthorizationButton(OlifeWallboxButtonBase):
     def __init__(self, client, name, device_info, device_unique_id):
         """Initialize the button."""
         super().__init__(client, name, device_info, device_unique_id)
-        self._register = REG_CHARGING_ENABLE_A if "A" in device_unique_id else REG_CHARGING_ENABLE_B
+        # For single-connector devices, always use B register
+        # TODO: Accept connector parameter explicitly for dual-connector support
+        self._register = REG_CHARGING_ENABLE_B
         self._attr_entity_category = None  # Main control
         
     @property
