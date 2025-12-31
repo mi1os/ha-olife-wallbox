@@ -67,6 +67,7 @@ class OlifeWallboxModbusClient:
 
     async def connect(self):
         """Connect to the Modbus device with retry logic."""
+        # Check connection status first (outside lock for performance)
         if self._connected and self._client is not None:
             # Check if the connection is still alive with a lightweight check
             if await self._check_connection():
@@ -78,7 +79,7 @@ class OlifeWallboxModbusClient:
         # Implement backoff for repeated connection failures
         now = datetime.now()
         backoff_time = min(10 * (2 ** min(self._connection_errors, 5)), 300)  # Max 5 minutes
-        
+
         if now - self._last_connect_attempt < timedelta(seconds=backoff_time):
             _LOGGER.debug(
                 "Waiting %s seconds before next connection attempt to %s:%s",
@@ -87,7 +88,7 @@ class OlifeWallboxModbusClient:
             return False
 
         self._last_connect_attempt = now
-        
+
         # Add counter for successful connections to reduce logging
         if not hasattr(self, '_successful_connections_count'):
             self._successful_connections_count = 0
@@ -95,14 +96,22 @@ class OlifeWallboxModbusClient:
         try:
             _LOGGER.debug("Connecting to Olife Wallbox at %s:%s", self._host, self._port)
             async with self._lock:
+                # Re-check connection state inside lock
+                if self._connected and self._client is not None:
+                    if await self._check_connection():
+                        return True
+                    else:
+                        self._connected = False
+
                 connected = await asyncio.get_event_loop().run_in_executor(
                     None, self._client.connect
                 )
-                
-                if connected:
+
+                # Only update state if connection actually succeeded
+                if connected and self._client.socket:
                     was_previously_connected = self._connected
                     had_previous_errors = self._connection_errors > 0
-                    
+
                     self._connected = True
                     self._connection_errors = 0
                     self._consecutive_errors = 0
