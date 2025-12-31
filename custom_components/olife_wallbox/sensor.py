@@ -150,6 +150,7 @@ async def async_setup_entry(
 
     
     # Create enhanced device info with the information we collected
+    # Filter device_info to only include valid DeviceInfo parameters
     enhanced_device_info = DeviceInfo(
         identifiers={(DOMAIN, device_unique_id)},
         name=name,

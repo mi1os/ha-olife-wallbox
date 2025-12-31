@@ -82,8 +82,18 @@ class OlifeWallboxButtonBase(ButtonEntity):
     @property
     def device_info(self):
         """Return device information."""
-        return self._device_info
-        
+        # Filter device_info to only include valid DeviceInfo parameters
+        return {
+            "identifiers": self._device_info.get("identifiers"),
+            "name": self._device_info.get("name"),
+            "manufacturer": self._device_info.get("manufacturer"),
+            "model": self._device_info.get("model"),
+            "sw_version": self._device_info.get("sw_version"),
+            "hw_version": self._device_info.get("hw_version"),
+            "serial_number": self._device_info.get("serial_number"),
+            "via_device": self._device_info.get("via_device"),
+        }
+
     def _should_log_error(self):
         """Determine whether to log an error based on error count."""
         return self._error_count == 1 or self._error_count % ERROR_LOG_THRESHOLD == 0

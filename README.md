@@ -15,6 +15,8 @@ This custom integration allows you to monitor and control your Olife Energy Wall
 - **Robust Error Handling**: Automatic retries, backoff strategies, and detailed logging
 - **Custom Services**: Control all aspects of your charging station via services
 - **Automation Triggers**: Create automations based on charging events
+- **Solar Optimization**: Automatically adjust charging current based on solar excess (requires external solar power sensor)
+
 
 ## Installation
 
@@ -50,6 +52,10 @@ Available options include:
 - **Enable Phase Sensors**: Turn on/off detailed per-phase electrical measurements
 - **Enable Error Sensors**: Turn on/off error code and CP state sensors
 - **Energy Tracking**: Enable/disable daily, monthly, and yearly energy tracking sensors
+- **Solar Power Entity**: Entity ID of your solar power sensor (W) for solar optimization
+- **Charging Phases**: Number of phases used for charging (1 or 3) - used for solar calculation
+- **Min Current Offset**: Offset to add to calculated solar current (A) - useful if you want to charge even with less solar power
+
 
 ## Multi-connector Support
 
@@ -91,6 +97,10 @@ Note: Some Wallbox versions may only use the right side B connector even in sing
 - **Current Limit**: Currently set charging current limit (A)
 - **LED PWM**: LED brightness level (0-1000)
 
+### Buttons
+- **Charging Authorization**: Authorize charging (simulates card swipe/app authorization)
+
+
 ## Available Controls
 
 - **Charging Switch**: Enable/disable charging
@@ -107,7 +117,7 @@ This integration provides the following services:
 - `olife_wallbox.start_charge`: Start charging
 - `olife_wallbox.stop_charge`: Stop charging
 - `olife_wallbox.set_current_limit`: Set the charging current limit (0-32A)
-- `olife_wallbox.set_max_current`: Set the maximum allowed charging current (0-63A)
+- `olife_wallbox.set_max_current`: **(DEPRECATED)** Set the maximum allowed charging current (0-63A) - This service is no longer functional as the limit is determined by hardware
 - `olife_wallbox.set_led_brightness`: Set the LED brightness level (0-1000)
 - `olife_wallbox.reset_energy_counters`: Reset energy counters (daily, monthly, or yearly)
 - `olife_wallbox.reload`: Reload the integration without restarting Home Assistant (useful for reconnecting after network issues)
@@ -121,7 +131,27 @@ The integration provides the following device triggers for automations:
 - **Charging Started**: Triggered when charging begins
 - **Charging Stopped**: Triggered when charging ends
 - **User Authenticated**: Triggered on successful user authentication
+- **User Authenticated**: Triggered on successful user authentication
 - **Error**: Triggered when an error occurs
+
+## Solar Optimization
+
+The integration includes a built-in solar optimization feature that can automatically adjust the charging current based on excess solar power.
+
+### Configuration
+
+1. Go to Settings > Devices & Services > Olife Energy Wallbox > Configure
+2. Select your **Solar Power Entity** (sensor reporting current export power in Watts, positive value = export)
+3. Set **Charging Phases** (1 or 3) matching your car/cable capabilities
+4. (Optional) Set **Min Current Offset** to adjust the target current
+
+### How it works
+
+The integration calculates the available current based on the solar power excess:
+`Available Current = Solar Power / (Voltage * Phases)`
+
+If the calculated current is above 6A (minimum standard), the charging limit is automatically updated. You can use the **Min Current Offset** to fine-tune this behavior (e.g., set to -1 to leave some buffer, or +2 to charge from grid if solar is slightly insufficient).
+
 
 ## Energy Dashboard Integration
 
