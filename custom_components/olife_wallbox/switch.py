@@ -109,7 +109,6 @@ class OlifeWallboxSwitchBase(SwitchEntity):
             "sw_version": self._device_info.get("sw_version", "Unknown"),
             "hw_version": self._device_info.get("hw_version", "Unknown"),
             "serial_number": self._device_info.get("serial_number"),
-            "via_device": self._device_info.get("via_device"),
         }
 
     @property
@@ -591,7 +590,18 @@ class OlifeWallboxSolarModeSwitch(SwitchEntity):
     @property
     def device_info(self):
         """Return device information."""
-        return self._device_info
+        # Filter device_info to only include valid DeviceInfo parameters
+        # Construct the identifiers from device_unique_id
+        host, port, slave_id = self._device_unique_id.split("_")
+        return {
+            "identifiers": {(DOMAIN, self._device_unique_id)},
+            "name": self._name,
+            "manufacturer": "Olife Energy",
+            "model": self._device_info.get("model", "Wallbox"),
+            "sw_version": self._device_info.get("sw_version", "Unknown"),
+            "hw_version": self._device_info.get("hw_version", "Unknown"),
+            "serial_number": self._device_info.get("serial_number"),
+        }
         
     @property
     def icon(self):
