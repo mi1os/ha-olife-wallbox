@@ -56,6 +56,7 @@ class OlifeWallboxModbusClient:
         self._client.unit_id = slave_id
         
         self._lock = asyncio.Lock()
+        self._connection_lock = asyncio.Lock()
         self._connected = False
         self._last_connect_attempt = datetime.min
         self._connection_errors = 0
@@ -95,7 +96,7 @@ class OlifeWallboxModbusClient:
 
         try:
             _LOGGER.debug("Connecting to Olife Wallbox at %s:%s", self._host, self._port)
-            async with self._lock:
+            async with self._connection_lock:
                 # Re-check connection state inside lock
                 if self._connected and self._client is not None:
                     if await self._check_connection():
@@ -169,11 +170,14 @@ class OlifeWallboxModbusClient:
 
         try:
             _LOGGER.debug("Disconnecting from Olife Wallbox at %s:%s", self._host, self._port)
-            async with self._lock:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, self._client.close
-                )
-                _LOGGER.debug("Successfully disconnected from Olife Wallbox")
+            async with self._connection_lock:
+                if not self._connected:
+                    return
+                async with self._lock:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, self._client.close
+                    )
+                    _LOGGER.debug("Successfully disconnected from Olife Wallbox")
         except ConnectionException as ex:
             _LOGGER.error("Error disconnecting from Olife Wallbox: %s", ex)
         except Exception as ex:
