@@ -21,7 +21,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -508,6 +508,8 @@ async def async_setup_entry(
         await coordinator.async_refresh()
     except Exception as ex:
         _LOGGER.warning("Error during initial refresh: %s", ex)
+        # Don't store coordinator on error to prevent memory leak
+        raise ConfigEntryNotReady(f"Failed to fetch initial data: {ex}") from ex
 
     # Store the coordinator in the hass data
     hass.data[DOMAIN][entry.entry_id]["coordinator"] = coordinator

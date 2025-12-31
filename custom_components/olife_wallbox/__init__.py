@@ -145,7 +145,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "client": client,
             "device_info": device_info,
             "read_only": read_only,
-            "read_only": read_only,
         }
 
         # Initialize Solar Optimizer if configured
@@ -209,6 +208,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client = hass.data[DOMAIN][entry.entry_id].get("client")
         if client:
             await client.disconnect()
+
+        # Clean up coordinator if it exists
+        coordinator = hass.data[DOMAIN][entry.entry_id].get("coordinator")
+        if coordinator:
+            # Stop the coordinator to prevent memory leaks
+            await coordinator.async_shutdown()
+
         hass.data[DOMAIN].pop(entry.entry_id)
     
     # Unload solar optimizer
