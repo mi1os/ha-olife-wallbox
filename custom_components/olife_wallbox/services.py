@@ -20,6 +20,8 @@ from .const import (
     REG_CHARGING_ENABLE_B,
     REG_CURRENT_LIMIT_A,
     REG_CURRENT_LIMIT_B,
+    REG_CLOUD_CURRENT_LIMIT_A,
+    REG_CLOUD_CURRENT_LIMIT_B,
     REG_MAX_STATION_CURRENT,
     REG_LED_PWM,
 )
@@ -140,7 +142,9 @@ async def _set_current_limit(hass: HomeAssistant, device_id: str, current_limit:
     """Set the current limit of a wallbox."""
     try:
         client = await _get_client_for_device(hass, device_id)
-        if await client.write_register(REG_CURRENT_LIMIT_A if current_limit < 16 else REG_CURRENT_LIMIT_B, current_limit):
+        # Use cloud registers for setting current limit (not read-only)
+        # REG_CURRENT_LIMIT_A/B are read-only, use REG_CLOUD_CURRENT_LIMIT_A/B instead
+        if await client.write_register(REG_CLOUD_CURRENT_LIMIT_B, current_limit):
             _LOGGER.info("Current limit set to %s A for device %s", current_limit, device_id)
             
             # Update number state for better responsiveness
