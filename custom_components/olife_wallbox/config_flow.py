@@ -25,7 +25,6 @@ from .const import (
     DEFAULT_ENABLE_ERROR_SENSORS,
 
     CONF_READ_ONLY,
-    CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
     CONF_SOLAR_POWER_ENTITY,
     CONF_CHARGING_PHASES,
@@ -43,34 +42,31 @@ async def validate_connection(hass: HomeAssistant, data):
     port = data[CONF_PORT]
     slave_id = data[CONF_SLAVE_ID]
 
-    # Initialize with minimal parameters
-    client = ModbusTcpClient(host=host, port=port)
-    
-    # Set the slave ID directly as an attribute
-    client.unit_id = slave_id
-    
-    try:
-        if client.connect():
-            # Try reading a register to verify communication
-            try:
-                # Try newer API pattern
-                result = client.read_holding_registers(2104, count=1)
-            except TypeError:
-                # Try older API pattern
-                result = client.read_holding_registers(2104, 1)
-                
-            if not result.isError():
-                return {"success": True}
+    def _test_connection():
+        """Perform blocking Modbus connection test."""
+        client = ModbusTcpClient(host=host, port=port, timeout=10)
+        client.unit_id = slave_id
+        try:
+            if client.connect():
+                try:
+                    result = client.read_holding_registers(2104, count=1)
+                except TypeError:
+                    result = client.read_holding_registers(2104, 1)
+
+                if not result.isError():
+                    return {"success": True}
+                else:
+                    return {"error": "Failed to read data from the device"}
             else:
-                return {"error": "Failed to read data from the device"}
-        else:
-            return {"error": "Failed to connect to the device"}
-    except ConnectionException:
-        return {"error": "Connection error"}
-    except Exception as ex:
-        return {"error": f"An error occurred: {ex}"}
-    finally:
-        client.close()
+                return {"error": "Failed to connect to the device"}
+        except ConnectionException:
+            return {"error": "Connection error"}
+        except Exception as ex:
+            return {"error": f"An error occurred: {ex}"}
+        finally:
+            client.close()
+
+    return await hass.async_add_executor_job(_test_connection)
 
 
 class OlifeWallboxConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

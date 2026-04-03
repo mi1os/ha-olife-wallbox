@@ -171,7 +171,7 @@ async def async_setup_entry(
                 if not hasattr(async_update_data, '_last_connected') or async_update_data._last_connected:
                     _LOGGER.error("Failed to connect to Olife Wallbox at %s:%s", host, port)
                     async_update_data._last_connected = False
-                return {}
+                raise UpdateFailed(f"Failed to connect to Olife Wallbox at {host}:{port}")
             
             # Log successful reconnection
             if hasattr(async_update_data, '_last_connected') and not async_update_data._last_connected:
@@ -189,7 +189,7 @@ async def async_setup_entry(
                 await asyncio.sleep(1)
                 if not await client.connect():
                     _LOGGER.debug("Failed to reset connection after multiple errors (will retry)")
-                    return {}
+                    raise UpdateFailed("Failed to reset connection after multiple errors")
                 else:
                     _LOGGER.info("Successfully reset connection after multiple errors")
                     async_update_data._reset_attempted = False

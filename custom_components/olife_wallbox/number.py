@@ -33,7 +33,6 @@ from .const import (
     ERROR_LOG_THRESHOLD
 )
 from .modbus_client import OlifeWallboxModbusClient
-from .helpers import parse_device_unique_id, DeviceUniqueIdError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,24 +92,15 @@ class OlifeWallboxNumberBase(NumberEntity):
     @property
     def device_info(self):
         """Return device information."""
-        # Filter device_info to only include valid DeviceInfo parameters
-        # Construct the identifiers from device_unique_id
-        try:
-            host, port, slave_id = parse_device_unique_id(self._device_unique_id)
-        except DeviceUniqueIdError as exc:
-            _LOGGER.error("Invalid device_unique_id format: %s", exc)
-            # Fallback to prevent crash
-            host, port, slave_id = "unknown", 0, 0
-        return {
-            "identifiers": {(DOMAIN, self._device_unique_id)},
-            "name": self._name,
-            "manufacturer": "Olife Energy",
-            "model": self._device_info.get("model", "Wallbox"),
-            "sw_version": self._device_info.get("sw_version", "Unknown"),
-            "hw_version": self._device_info.get("hw_version", "Unknown"),
-            "serial_number": self._device_info.get("serial_number"),
-            "via_device": self._device_info.get("via_device"),
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device_unique_id)},
+            name=self._name,
+            manufacturer="Olife Energy",
+            model=self._device_info.get("model", "Wallbox"),
+            sw_version=self._device_info.get("sw_version", "Unknown"),
+            hw_version=self._device_info.get("hw_version", "Unknown"),
+            serial_number=self._device_info.get("serial_number"),
+        )
 
     @property
     def state(self):
@@ -500,7 +490,15 @@ class OlifeWallboxSolarOffset(NumberEntity):
     @property
     def device_info(self):
         """Return device information."""
-        return self._device_info
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device_unique_id)},
+            name=self._name,
+            manufacturer="Olife Energy",
+            model=self._device_info.get("model", "Wallbox"),
+            sw_version=self._device_info.get("sw_version", "Unknown"),
+            hw_version=self._device_info.get("hw_version", "Unknown"),
+            serial_number=self._device_info.get("serial_number"),
+        )
 
     async def async_set_native_value(self, value):
         """Set the value."""

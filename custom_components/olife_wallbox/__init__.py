@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
-    DOMAIN, 
+    DOMAIN,
     PLATFORMS,
     CONF_READ_ONLY,
     DEFAULT_READ_ONLY,
@@ -24,18 +24,16 @@ from .const import (
     REG_DAY_HOUR,
     REG_PN_TYPE,
     REG_PN_LEFT,
-    REG_PN_RIGHT
-)
-from .services import async_setup_services, async_unload_services
-from .modbus_client import OlifeWallboxModbusClient
-from .solar_control import OlifeSolarOptimizer
-from .const import (
+    REG_PN_RIGHT,
     CONF_SOLAR_POWER_ENTITY,
     CONF_CHARGING_PHASES,
     CONF_MIN_CURRENT_OFFSET,
     DEFAULT_CHARGING_PHASES,
     DEFAULT_MIN_CURRENT_OFFSET,
 )
+from .services import async_setup_services, async_unload_services
+from .modbus_client import OlifeWallboxModbusClient
+from .solar_control import OlifeSolarOptimizer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,23 +223,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms_to_unload)
     
-    # Disconnect client
+    # Clean up resources before removing data
     if unload_ok and hass.data[DOMAIN].get(entry.entry_id):
+        # Disable solar optimizer first (while data is still accessible)
+        optimizer = hass.data[DOMAIN][entry.entry_id].get("solar_optimizer")
+        if optimizer:
+            optimizer.disable()
+
+        # Clean up coordinator
+        coordinator = hass.data[DOMAIN][entry.entry_id].get("coordinator")
+        if coordinator:
+            await coordinator.async_shutdown()
+
+        # Disconnect client
         client = hass.data[DOMAIN][entry.entry_id].get("client")
         if client:
             await client.disconnect()
 
-        # Clean up coordinator if it exists
-        coordinator = hass.data[DOMAIN][entry.entry_id].get("coordinator")
-        if coordinator:
-            # Stop the coordinator to prevent memory leaks
-            await coordinator.async_shutdown()
-
         hass.data[DOMAIN].pop(entry.entry_id)
-    
-    # Unload solar optimizer
-    if hass.data[DOMAIN].get(entry.entry_id) and "solar_optimizer" in hass.data[DOMAIN][entry.entry_id]:
-        hass.data[DOMAIN][entry.entry_id]["solar_optimizer"].disable()
 
     # Unload services if this is the last entry
     if not hass.data[DOMAIN]:

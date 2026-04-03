@@ -3,7 +3,7 @@ import logging
 import asyncio
 from typing import Optional
 
-from homeassistant.core import HomeAssistant, State, callback
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
@@ -68,7 +68,6 @@ class OlifeSolarOptimizer:
             self._remove_listener()
             self._remove_listener = None
 
-    @callback
     async def _async_on_state_change(self, event):
         """Handle state change events."""
         new_state = event.data.get("new_state")
@@ -165,10 +164,11 @@ class OlifeSolarOptimizer:
                     # We might need to respect the connector selection logic from number.py if we want to be 100% correct for all models
                     # But for now assuming Connector B is the primary controllable one as per existing code
 
-                    # Note: We are not checking if the write was successful here to keep it simple async
-                    # In a robust implementation we might want to retry or handle errors
-                    await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, final_current)
-                    self._current_limit = final_current
+                    success = await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, final_current)
+                    if success:
+                        self._current_limit = final_current
+                    else:
+                        _LOGGER.warning("Failed to write solar current limit %sA, will retry on next update", final_current)
                 
         except ValueError:
             _LOGGER.warning("Invalid solar power value: %s", state.state)
