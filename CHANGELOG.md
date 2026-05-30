@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/mi1os/ha-olife-wallbox/compare/v1.2.1...v1.2.2) (2026-05-30)
+
+
+### Bug Fixes
+
+* drop invalid manifest diagnostics key and device target filters ([87c497e](https://github.com/mi1os/ha-olife-wallbox/commit/87c497e39a1a1c5812889e5ca454f282a1185d8f))
+
 ## [1.2.1](https://github.com/mi1os/ha-olife-wallbox/compare/v1.2.0...v1.2.1) (2026-05-30)
 
 
