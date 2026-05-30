@@ -10,12 +10,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v6
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -25,13 +25,13 @@ jobs:
       - name: Create requirements_dev.txt if not exists
         run: |
           if [ ! -f requirements_dev.txt ]; then
-            echo "homeassistant==2023.12.1" > requirements_dev.txt
-            echo "pre-commit==3.5.0" >> requirements_dev.txt
-            echo "pylint==3.0.2" >> requirements_dev.txt
-            echo "black==23.11.0" >> requirements_dev.txt
-            echo "flake8==6.1.0" >> requirements_dev.txt
-            echo "isort==5.12.0" >> requirements_dev.txt
-            echo "pymodbus>=3.0.0" >> requirements_dev.txt
+            echo "homeassistant==2026.5.4" > requirements_dev.txt
+            echo "pre-commit==4.6.0" >> requirements_dev.txt
+            echo "pylint==4.0.5" >> requirements_dev.txt
+            echo "black==26.5.1" >> requirements_dev.txt
+            echo "flake8==7.3.0" >> requirements_dev.txt
+            echo "isort==8.0.1" >> requirements_dev.txt
+            echo "pymodbus>=3.6.0" >> requirements_dev.txt
             pip install -r requirements_dev.txt
           fi
 
