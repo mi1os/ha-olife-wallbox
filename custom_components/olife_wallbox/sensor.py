@@ -269,7 +269,12 @@ async def async_setup_entry(
                 # Read power sum (total power from all phases)
                 power_sum = await client.read_holding_registers(REG_POWER_SUM_B, 1)
                 if power_sum is not None:
-                    data["connector_B"]["charge_power"] = power_sum[0]
+                    # Power is a signed int16; convert so export (negative) power
+                    # is not misread as a large unsigned value.
+                    power_sum_value = power_sum[0]
+                    if power_sum_value >= 0x8000:
+                        power_sum_value -= 65536
+                    data["connector_B"]["charge_power"] = power_sum_value
 
                 # Read the summary energy value (32-bit)
                 energy_sum_extended = await client.read_holding_registers(REG_ENERGY_SUM_B, 2)
@@ -348,39 +353,47 @@ async def async_setup_entry(
                     power_val = await client.read_holding_registers(power_reg, 1)
                     if power_val is not None:
                         key = f"power_l{phase_num}"
+                        # Power is a signed int16; convert so export (negative)
+                        # power is not misread as a large unsigned value.
+                        power_w = power_val[0]
+                        if power_w >= 0x8000:
+                            power_w -= 65536
                         if data.get("external_wattmeter_present", False):
                             # For external wattmeter on single-connector, only store in B
                             if num_connectors == 1:
-                                data["connector_B"][key] = power_val[0]
+                                data["connector_B"][key] = power_w
                             else:
                                 # Store in both connector data structures since it's an external meter
-                                data["connector_A"][key] = power_val[0]
-                                data["connector_B"][key] = power_val[0]
+                                data["connector_A"][key] = power_w
+                                data["connector_B"][key] = power_w
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if power_reg in [REG_POWER_L1_A, REG_POWER_L2_A, REG_POWER_L3_A]:
-                                data["connector_A"][key] = power_val[0]
+                                data["connector_A"][key] = power_w
                             else:
-                                data["connector_B"][key] = power_val[0]
+                                data["connector_B"][key] = power_w
                         else:
                             # For single connector, store in connector B
-                            data["connector_B"][key] = power_val[0]
-                        
-                        _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X)", 
-                                    phase_num, power_val[0], power_val[0])
+                            data["connector_B"][key] = power_w
+
+                        _LOGGER.debug("Read power for phase %s: %s W (raw: 0x%04X)",
+                                    phase_num, power_w, power_val[0])
                     
                     # Read current
                     current_val = await client.read_holding_registers(current_reg, 1)
                     if current_val is not None:
                         key = f"current_l{phase_num}"
                         if data.get("external_wattmeter_present", False):
+                            # External wattmeter reports current in x0.01 A; normalize
+                            # to mA (x10) so the sensor's /1000 conversion stays valid.
+                            current_ma = current_val[0] * 10
                             # For external wattmeter on single-connector, only store in B
                             if num_connectors == 1:
-                                data["connector_B"][key] = current_val[0]
+                                data["connector_B"][key] = current_ma
                             else:
                                 # Store in both connector data structures since it's an external meter
-                                data["connector_A"][key] = current_val[0]
-                                data["connector_B"][key] = current_val[0]
+                                data["connector_A"][key] = current_ma
+                                data["connector_B"][key] = current_ma
                         elif "A" in connectors_in_use and "B" in connectors_in_use:
                             # For dual connector, store in appropriate connector
                             if current_reg in [REG_CURRENT_L1_A, REG_CURRENT_L2_A, REG_CURRENT_L3_A]:
@@ -784,29 +797,6 @@ class OlifeWallboxEVStateSensor(OlifeWallboxSensor):
     def state_class(self):
         """Return the state class."""
         return None
-
-class OlifeWallboxCurrentLimitSensor(OlifeWallboxSensor):
-    """Sensor for Olife Energy Wallbox current limit."""
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return "Current Limit"
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        return self._get_value_from_data()
-
-    @property
-    def native_unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return UnitOfElectricCurrent.AMPERE
-
-    @property
-    def device_class(self):
-        """Return the device class of the sensor."""
-        return SensorDeviceClass.CURRENT
 
 class OlifeWallboxChargeCurrentSensor(OlifeWallboxSensor):
     """Sensor for Olife Energy Wallbox charge current."""

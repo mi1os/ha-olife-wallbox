@@ -147,8 +147,8 @@ class OlifeWallboxCurrentLimit(OlifeWallboxNumberBase):
     @property
     def native_min_value(self):
         """Return the minimum value."""
-        return 0  # Allow turning off completely
-        
+        return 6  # EV charging minimum; values below this are clamped in async_set_native_value
+
     @property
     def native_max_value(self):
         """Return the maximum value."""

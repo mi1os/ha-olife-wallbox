@@ -106,6 +106,11 @@ async def _set_current_limit(hass: HomeAssistant, device_id: str, current_limit:
     """Set the current limit of a wallbox."""
     try:
         client = await _get_client_for_device(hass, device_id)
+        # 0 is an explicit "stop/pause" request and is written as-is.
+        # For any active value, match the number entity which clamps the EV
+        # charging minimum to 6 A (values 1..5 are raised to 6).
+        if 0 < current_limit < 6:
+            current_limit = 6
         if await client.write_register(REG_CLOUD_CURRENT_LIMIT_B, current_limit):
             _LOGGER.info("Current limit set to %s A for device %s", current_limit, device_id)
         else:
@@ -191,9 +196,11 @@ async def _reload_integration(hass: HomeAssistant, device_id: str = None) -> Non
         device = device_registry.async_get(device_id)
         if device:
             # Get the config entry for this device
+            # async_entries returns ConfigEntry objects, so compare against their entry_ids
+            domain_entry_ids = {entry.entry_id for entry in hass.config_entries.async_entries(DOMAIN)}
             config_entries = [
-                entry_id for entry_id in device.config_entries 
-                if entry_id in hass.config_entries.async_entries(DOMAIN)
+                entry_id for entry_id in device.config_entries
+                if entry_id in domain_entry_ids
             ]
         else:
             _LOGGER.error(f"Device with ID {device_id} not found")

@@ -38,7 +38,7 @@ MAX_CONSECUTIVE_ERRORS = 10
 REG_AUTOMATIC = 5003               # 0/1, Automatic charging after car connection
 REG_AUTOMATIC_DIPSWITCH_ON = 5004  # 0/1, Automatic mode driven by dip switch state
 REG_MAX_CURRENT_DIPSWITCH_ON = 5005  # 0/1, Max station current controlled by dip switch
-REG_MAX_STATION_CURRENT = 5006     # Max station current in mA
+REG_MAX_STATION_CURRENT = 5006     # Max station current in A
 REG_BALANCING_EXTERNAL_CURRENT = 5007  # 0/1, Set 1 for balancing the external current controlled by external wattmeter
 REG_LED_PWM = 5008                 # LED PWM value (0-1000)
 

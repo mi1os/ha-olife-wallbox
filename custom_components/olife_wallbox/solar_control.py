@@ -34,8 +34,9 @@ class OlifeSolarOptimizer:
         self._min_current_offset = min_current_offset
         self._max_station_current_entity_id = max_station_current_entity_id
         self._remove_listener = None
-        self._current_limit = 6  # Default start
+        self._current_limit = None  # Unknown until first write; ensures first cycle always writes
         self._current_limit_lock = asyncio.Lock()
+        self._enabled = False
         
     def set_offset(self, offset: int):
         """Update the offset value at runtime."""
@@ -48,7 +49,9 @@ class OlifeSolarOptimizer:
             return
 
         _LOGGER.info("Enabling solar optimizer for entity %s", self._solar_entity_id)
-        
+
+        self._enabled = True
+
         # Track state changes of the solar entity
         self._remove_listener = async_track_state_change_event(
             self.hass,
@@ -63,6 +66,7 @@ class OlifeSolarOptimizer:
 
     def disable(self):
         """Disable the solar optimizer."""
+        self._enabled = False
         if self._remove_listener:
             _LOGGER.info("Disabling solar optimizer")
             self._remove_listener()
@@ -163,6 +167,12 @@ class OlifeSolarOptimizer:
                     # Using REG_CLOUD_CURRENT_LIMIT_B as per number.py implementation
                     # We might need to respect the connector selection logic from number.py if we want to be 100% correct for all models
                     # But for now assuming Connector B is the primary controllable one as per existing code
+
+                    # Bail out if the optimizer was disabled (e.g. during unload) to avoid
+                    # reopening the Modbus connection from an in-flight update
+                    if not self._enabled:
+                        _LOGGER.debug("Solar optimizer disabled, skipping current limit write")
+                        return
 
                     success = await self._client.write_register(REG_CLOUD_CURRENT_LIMIT_B, final_current)
                     if success:

@@ -123,10 +123,12 @@ async def async_attach_trigger(
         CONF_ENTITY_ID: ev_state_entity_id,
     }
 
-    # Special case for "charging_stopped" since we need to monitor transitions from
-    # charging (4) to any other state
+    # Special case for "charging_stopped": charging ended normally, i.e. a
+    # transition from charging (4) back to the connected state (2). Constraining
+    # the "to" state avoids firing on transitions into error/interrupted states.
     if trigger_type == TRIGGER_TYPE_CHARGING_STOPPED:
         trigger_config["from"] = WALLBOX_EV_STATES.get(4)  # From "Charging"
+        trigger_config["to"] = WALLBOX_EV_STATES.get(2)  # To "EV Connected"
     else:
         # For other triggers, we set the "to" state
         state_value = TRIGGER_STATE_MAP.get(trigger_type)

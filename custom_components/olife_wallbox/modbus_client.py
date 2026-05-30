@@ -60,17 +60,47 @@ class OlifeWallboxModbusClient:
         self._register_cache = {}
 
     def _create_client(self):
+        """Create a fresh client, closing any existing one.
+
+        Must be called while holding the I/O lock so the socket on the shared
+        client is never swapped out from under a concurrent Modbus operation.
+        """
         if self._client is not None:
             try:
                 self._client.close()
             except Exception:
                 pass
         self._client = ModbusTcpClient(
-            host=self._host, 
+            host=self._host,
             port=self._port,
             timeout=CONNECTION_TIMEOUT
         )
         self._client.unit_id = self._slave_id
+
+    def _reset_client(self):
+        """Close and drop the current client so it cannot be reused.
+
+        Must be called while holding the I/O lock. Marks the connection dead;
+        the next operation will create a fresh client via connect().
+        """
+        self._connected = False
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+    def _in_backoff_window(self) -> bool:
+        """Return True if a connection-level backoff is currently active.
+
+        Mirrors the backoff math in connect(): while this is True, connect()
+        refuses to attempt a reconnect, so per-register retries cannot make
+        progress and should fail fast.
+        """
+        if self._connection_errors == 0:
+            return False
+        backoff_time = min(2 * (2 ** min(self._connection_errors, 6)), 120)
+        return datetime.now() - self._last_connect_attempt < timedelta(seconds=backoff_time)
+
     async def connect(self):
         """Connect to the Modbus device with retry logic."""
         if self._connected and self._client is not None:
@@ -78,7 +108,6 @@ class OlifeWallboxModbusClient:
                 return True
             else:
                 _LOGGER.debug("Connection check failed, reconnecting")
-                self._connected = False
 
         now = datetime.now()
         backoff_time = min(2 * (2 ** min(self._connection_errors, 6)), 120)
@@ -95,43 +124,44 @@ class OlifeWallboxModbusClient:
                 if self._connected and self._client is not None:
                     if await self._check_connection():
                         return True
-                    else:
-                        self._connected = False
 
-                if not self._connected:
+                async with self._lock:
+                    # Always start a fresh client/socket under the I/O lock so we
+                    # never replace the socket while another op is in flight.
                     self._create_client()
+                    client = self._client
 
-                connected = await asyncio.wait_for(
-                    asyncio.get_running_loop().run_in_executor(None, self._client.connect),
-                    timeout=EXECUTOR_TIMEOUT
-                )
-
-                if connected and self._client.socket:
-                    was_previously_connected = self._connected
-                    had_previous_errors = self._connection_errors > 0
-
-                    self._connected = True
-                    self._connection_errors = 0
-                    self._consecutive_errors = 0
-                    self._last_successful_connection = now
-                    self._successful_connections_count += 1
-                    
-                    if (self._successful_connections_count == 1 or 
-                        had_previous_errors or 
-                        self._successful_connections_count % 100 == 0):
-                        _LOGGER.info("Successfully connected to Olife Wallbox at %s:%s", self._host, self._port)
-                else:
-                    self._connection_errors += 1
-                    _LOGGER.warning(
-                        "Connection attempt to Olife Wallbox at %s:%s failed (attempt %s)",
-                        self._host, self._port, self._connection_errors
+                    connected = await asyncio.wait_for(
+                        asyncio.get_running_loop().run_in_executor(None, client.connect),
+                        timeout=EXECUTOR_TIMEOUT
                     )
-                    self._connected = False
-                
-                return connected
+
+                    if connected and client.socket:
+                        had_previous_errors = self._connection_errors > 0
+
+                        self._connected = True
+                        self._connection_errors = 0
+                        self._consecutive_errors = 0
+                        self._last_successful_connection = now
+                        self._successful_connections_count += 1
+
+                        if (self._successful_connections_count == 1 or
+                            had_previous_errors or
+                            self._successful_connections_count % 100 == 0):
+                            _LOGGER.info("Successfully connected to Olife Wallbox at %s:%s", self._host, self._port)
+                    else:
+                        self._connection_errors += 1
+                        _LOGGER.warning(
+                            "Connection attempt to Olife Wallbox at %s:%s failed (attempt %s)",
+                            self._host, self._port, self._connection_errors
+                        )
+                        self._reset_client()
+
+                    return connected
         except (AsyncioTimeoutError, ConnectionException, socket.timeout, socket.error) as ex:
             self._connection_errors += 1
-            self._connected = False
+            async with self._lock:
+                self._reset_client()
             _LOGGER.error(
                 "Connection error to Olife Wallbox at %s:%s: %s (attempt %s)",
                 self._host, self._port, type(ex).__name__, self._connection_errors
@@ -139,22 +169,24 @@ class OlifeWallboxModbusClient:
             return False
         except Exception as ex:
             self._connection_errors += 1
-            self._connected = False
+            async with self._lock:
+                self._reset_client()
             _LOGGER.error("Unexpected error connecting: %s", ex)
             return False
     async def disconnect(self):
-        """Disconnect from the Modbus device."""
-        if not self._connected:
-            return
+        """Disconnect from the Modbus device.
 
+        Always closes the underlying client/socket if one exists, even when
+        ``_connected`` is already False, so a stale socket is never leaked
+        (e.g. after a failed transaction marked the connection dead).
+        """
         try:
             _LOGGER.debug("Disconnecting from Olife Wallbox at %s:%s", self._host, self._port)
             async with self._connection_lock:
-                if not self._connected:
-                    return
                 async with self._lock:
-                    await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, self._client.close), timeout=5.0)
-                    _LOGGER.debug("Successfully disconnected from Olife Wallbox")
+                    if self._client is not None:
+                        await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, self._client.close), timeout=5.0)
+                        _LOGGER.debug("Successfully disconnected from Olife Wallbox")
         except ConnectionException as ex:
             _LOGGER.error("Error disconnecting from Olife Wallbox: %s", ex)
         except Exception as ex:
@@ -175,6 +207,15 @@ class OlifeWallboxModbusClient:
         
         for retry in range(MAX_RETRIES):
             if not await self.connect():
+                # During an active connection-level backoff window connect()
+                # returns False immediately; fail fast and let the coordinator
+                # make a single reconnect decision next cycle instead of
+                # burning per-register retries against a dead socket.
+                if self._in_backoff_window():
+                    _LOGGER.debug(
+                        "Connection in backoff window, skipping read of register %s", address
+                    )
+                    return None
                 if retry < MAX_RETRIES - 1:
                     _LOGGER.debug(
                         "Connection failed, retrying in %s seconds (attempt %s/%s)",
@@ -188,19 +229,23 @@ class OlifeWallboxModbusClient:
                 async with self._lock:
                     # Start timing the request
                     start_time = time.time()
-                    
-                    # Use a compatibility layer for different pymodbus versions
+
+                    # Bind the executor call to a local client reference so a
+                    # later retry cannot race a second op through self._client.
+                    client = self._client
                     try:
-                        # Try newer API pattern
-                        result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: self._client.read_holding_registers(address, count=count)), timeout=EXECUTOR_TIMEOUT)
-                    except TypeError:
-                        try:
-                            # Try older API pattern
-                            result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: self._client.read_holding_registers(address, count)), timeout=EXECUTOR_TIMEOUT)
-                        except Exception as e:
-                            _LOGGER.error("Failed to read registers: %s", e)
-                            return None
-                    
+                        result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: client.read_holding_registers(address, count=count)), timeout=EXECUTOR_TIMEOUT)
+                    except AsyncioTimeoutError:
+                        # The blocking pymodbus call may still be running in the
+                        # executor thread on `client`; abandon that client so the
+                        # timed-out op cannot be reused concurrently on retry.
+                        self._consecutive_errors += 1
+                        self._reset_client()
+                        _LOGGER.warning("Timed out reading register %s; resetting connection", address)
+                        if retry < MAX_RETRIES - 1:
+                            continue
+                        return None
+
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
                     
@@ -250,8 +295,10 @@ class OlifeWallboxModbusClient:
                     return register_values
             except (AsyncioTimeoutError, ConnectionException, ModbusException) as ex:
                 self._consecutive_errors += 1
-                self._connected = False
-                
+                # Close the dead socket so it is not leaked / reused.
+                async with self._lock:
+                    self._reset_client()
+
                 if retry < MAX_RETRIES - 1:
                     _LOGGER.warning(
                         "Error reading register %s: %s. Retrying in %s seconds (attempt %s/%s)",
@@ -269,7 +316,8 @@ class OlifeWallboxModbusClient:
                 raise  # Re-raise cancellation to properly handle it
             except Exception as ex:
                 self._consecutive_errors += 1
-                self._connected = False
+                async with self._lock:
+                    self._reset_client()
                 _LOGGER.error(
                     "Unexpected error reading register %s: %s",
                     address, ex
@@ -297,8 +345,23 @@ class OlifeWallboxModbusClient:
         
         This method uses Function Code 16 (Preset Multiple Registers) as required by some Modbus devices.
         """
+        # Guard against values outside the 16-bit register range (0..65535).
+        for value in values:
+            if not isinstance(value, int) or value < 0 or value > 0xFFFF:
+                _LOGGER.error(
+                    "Refusing to write out-of-range value %s to registers starting at %s (must be 0..65535)",
+                    value, address
+                )
+                return False
+
         for retry in range(MAX_RETRIES):
             if not await self.connect():
+                # Fail fast during an active backoff window (see read path).
+                if self._in_backoff_window():
+                    _LOGGER.debug(
+                        "Connection in backoff window, skipping write to register %s", address
+                    )
+                    return False
                 if retry < MAX_RETRIES - 1:
                     _LOGGER.debug(
                         "Connection failed, retrying in %s seconds (attempt %s/%s)",
@@ -312,30 +375,30 @@ class OlifeWallboxModbusClient:
                 async with self._lock:
                     # Log the write operation
                     _LOGGER.debug(
-                        "Writing values %s to registers starting at %s", 
+                        "Writing values %s to registers starting at %s",
                         values, address
                     )
-                    
+
                     # Start timing the request
                     start_time = time.time()
-                    
-                    # Use a compatibility layer for different pymodbus versions
+
+                    # Bind the executor call to a local client reference so a
+                    # later retry cannot race a second op through self._client.
+                    client = self._client
+                    _LOGGER.debug("Attempting to write values %s to register %s (Function Code 16)", values, address)
                     try:
-                        # Try newer API pattern first
-                        _LOGGER.debug("Attempting to write values %s to register %s using newer API pattern (Function Code 16)", values, address)
-                        result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: self._client.write_registers(address, values=values)), timeout=EXECUTOR_TIMEOUT)
-                    except TypeError as te:
-                        _LOGGER.debug("TypeError with newer API pattern: %s. Trying older pattern.", te)
-                        try:
-                            # Try older API pattern
-                            result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: self._client.write_registers(address, values)), timeout=EXECUTOR_TIMEOUT)
-                        except Exception as e:
-                            _LOGGER.error("Failed to write registers with older API pattern: %s", e)
-                            return False
-                    except Exception as e:
-                        _LOGGER.error("Failed to write registers with newer API pattern: %s", e)
+                        result = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, lambda: client.write_registers(address, values=values)), timeout=EXECUTOR_TIMEOUT)
+                    except AsyncioTimeoutError:
+                        # The blocking pymodbus call may still be running in the
+                        # executor thread on `client`; abandon that client so the
+                        # timed-out op cannot be reused concurrently on retry.
+                        self._consecutive_errors += 1
+                        self._reset_client()
+                        _LOGGER.warning("Timed out writing register %s; resetting connection", address)
+                        if retry < MAX_RETRIES - 1:
+                            continue
                         return False
-                    
+
                     # Log request time for performance monitoring
                     elapsed = time.time() - start_time
                     _LOGGER.debug(
@@ -369,8 +432,10 @@ class OlifeWallboxModbusClient:
                     return True
             except (AsyncioTimeoutError, ConnectionException, ModbusException) as ex:
                 self._consecutive_errors += 1
-                self._connected = False
-                
+                # Close the dead socket so it is not leaked / reused.
+                async with self._lock:
+                    self._reset_client()
+
                 if retry < MAX_RETRIES - 1:
                     _LOGGER.warning(
                         "Error writing to registers starting at %s: %s. Retrying in %s seconds (attempt %s/%s)",
@@ -388,7 +453,8 @@ class OlifeWallboxModbusClient:
                 raise  # Re-raise cancellation to properly handle it
             except Exception as ex:
                 self._consecutive_errors += 1
-                self._connected = False
+                async with self._lock:
+                    self._reset_client()
                 _LOGGER.error(
                     "Unexpected error writing to registers starting at %s: %s",
                     address, ex
@@ -433,33 +499,24 @@ class OlifeWallboxModbusClient:
         if now - self._last_successful_connection > timedelta(minutes=5):
             _LOGGER.debug("Connection may be stale, performing verification")
             try:
-                # Use a short timeout (5s) to avoid blocking other entities
-                result = await asyncio.wait_for(
-                    asyncio.get_running_loop().run_in_executor(
-                        None, lambda: self._client.read_holding_registers(2104, count=1)
-                    ),
-                    timeout=5.0,
-                )
+                # Serialize the verification read under the I/O lock so it cannot
+                # interleave Modbus frames with the coordinator/entity reads.
+                async with self._lock:
+                    client = self._client
+                    if client is None:
+                        return False
+                    # Use a short timeout (5s) to avoid blocking other entities
+                    result = await asyncio.wait_for(
+                        asyncio.get_running_loop().run_in_executor(
+                            None, lambda: client.read_holding_registers(2104, count=1)
+                        ),
+                        timeout=5.0,
+                    )
                 if result is None or (hasattr(result, 'isError') and result.isError()):
                     _LOGGER.debug("Connection check failed: invalid response")
                     return False
                 self._last_successful_connection = now
                 return True
-            except TypeError:
-                try:
-                    result = await asyncio.wait_for(
-                        asyncio.get_running_loop().run_in_executor(
-                            None, lambda: self._client.read_holding_registers(2104, 1)
-                        ),
-                        timeout=5.0,
-                    )
-                    if result is None or (hasattr(result, 'isError') and result.isError()):
-                        return False
-                    self._last_successful_connection = now
-                    return True
-                except Exception as e:
-                    _LOGGER.debug("Connection check failed: %s", e)
-                    return False
             except Exception as ex:
                 _LOGGER.debug("Connection check failed: %s", ex)
                 return False

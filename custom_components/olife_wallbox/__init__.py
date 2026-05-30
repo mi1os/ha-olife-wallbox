@@ -20,11 +20,6 @@ from .const import (
     REG_NUM_CONNECTORS,
     REG_SN_FIRST_PART,
     REG_SN_LAST_PART,
-    REG_YEAR_MONTH,
-    REG_DAY_HOUR,
-    REG_PN_TYPE,
-    REG_PN_LEFT,
-    REG_PN_RIGHT,
     CONF_SOLAR_POWER_ENTITY,
     CONF_CHARGING_PHASES,
     CONF_MIN_CURRENT_OFFSET,
@@ -54,6 +49,7 @@ def _normalize_connector_count(raw_value: Optional[int]) -> tuple[int, list[str]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Olife Energy Wallbox from a config entry."""
+    client = None
     try:
         # Get configuration from entry
         host = entry.data[CONF_HOST]
@@ -126,14 +122,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     device_info["serial_number"] = serial_number
                     
             # Update the device registry with the device information
-            device_registry.async_update_device(
-                device_id=device_registry.async_get_device(identifiers={(DOMAIN, f"{host}_{port}_{slave_id}")}).id,
-                name=name,
-                manufacturer="Olife Energy",
-                model=f"Wallbox ({device_info.get('num_connectors', '?')}-connector)",
-                sw_version=device_info.get("sw_version", "Unknown"),
-                hw_version=device_info.get("hw_version", "Unknown"),
+            device = device_registry.async_get_device(
+                identifiers={(DOMAIN, f"{host}_{port}_{slave_id}")}
             )
+            if device is not None:
+                device_registry.async_update_device(
+                    device_id=device.id,
+                    name=name,
+                    manufacturer="Olife Energy",
+                    model=f"Wallbox ({device_info.get('num_connectors', '?')}-connector)",
+                    sw_version=device_info.get("sw_version", "Unknown"),
+                    hw_version=device_info.get("hw_version", "Unknown"),
+                )
             
         except Exception as ex:
             _LOGGER.warning("Failed to read device information: %s", ex)
@@ -207,10 +207,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         
         return True
+    except ConfigEntryNotReady:
+        # Let HA handle automatic retry/backoff; don't swallow into False.
+        if client is not None:
+            await client.disconnect()
+        raise
     except Exception as ex:
         _LOGGER.error("Failed to set up Olife Wallbox: %s", ex)
         # Only try to disconnect if client was created
-        if 'client' in locals():
+        if client is not None:
             await client.disconnect()
         return False
 

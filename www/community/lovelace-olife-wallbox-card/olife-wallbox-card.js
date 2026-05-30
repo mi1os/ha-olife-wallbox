@@ -94,9 +94,11 @@ class OlifeWallboxCard extends HTMLElement {
     // Card header
     const header = document.createElement("div");
     header.className = "card-header";
-    header.innerHTML = `
-      <div class="name">${this._config.title}</div>
-    `;
+    const headerName = document.createElement("div");
+    headerName.className = "name";
+    // Use textContent to avoid HTML injection via the configured title
+    headerName.textContent = this._config.title;
+    header.appendChild(headerName);
     this.content.appendChild(header);
 
     // Card content
