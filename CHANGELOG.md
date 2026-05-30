@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/mi1os/ha-olife-wallbox/compare/v1.2.0...v1.2.1) (2026-05-30)
+
+
+### Bug Fixes
+
+* harden Modbus connection lifecycle and resolve correctness bugs ([3418b81](https://github.com/mi1os/ha-olife-wallbox/commit/3418b8107b670e83c78649a3483538ce5121988f))
+
 ## [1.1.2](https://github.com/mi1os/ha-olife-wallbox/compare/v1.1.1...v1.1.2) (2025-12-31)
 
 
