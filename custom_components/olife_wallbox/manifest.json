@@ -1,19 +1,19 @@
 {
   "domain": "olife_wallbox",
   "name": "Olife Energy Wallbox",
-  "documentation": "https://github.com/mi1os/ha-olife-wallbox",
-  "dependencies": [
-    "modbus"
-  ],
   "codeowners": [
     "@mi1os"
   ],
+  "config_flow": true,
+  "dependencies": [
+    "modbus"
+  ],
+  "documentation": "https://github.com/mi1os/ha-olife-wallbox",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/mi1os/ha-olife-wallbox/issues",
+  "quality_scale": "silver",
   "requirements": [
     "pymodbus>=3.6.0"
   ],
-  "config_flow": true,
-  "iot_class": "local_polling",
-  "version": "1.2.2",
-  "quality_scale": "silver",
-  "issue_tracker": "https://github.com/mi1os/ha-olife-wallbox/issues"
+  "version": "1.2.2"
 }
