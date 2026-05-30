@@ -7,8 +7,6 @@ start_charge:
     entity:
       domain: switch
       integration: olife_wallbox
-    device:
-      integration: olife_wallbox
   fields:
     device_id:
       name: Device
@@ -25,8 +23,6 @@ stop_charge:
     entity:
       domain: switch
       integration: olife_wallbox
-    device:
-      integration: olife_wallbox
   fields:
     device_id:
       name: Device
@@ -42,8 +38,6 @@ set_current_limit:
   target:
     entity:
       domain: number
-      integration: olife_wallbox
-    device:
       integration: olife_wallbox
   fields:
     device_id:
@@ -73,8 +67,6 @@ set_max_current:
     entity:
       domain: number
       integration: olife_wallbox
-    device:
-      integration: olife_wallbox
   fields:
     device_id:
       name: Device
@@ -101,8 +93,6 @@ set_led_brightness:
     entity:
       domain: number
       integration: olife_wallbox
-    device:
-      integration: olife_wallbox
   fields:
     device_id:
       name: Device
@@ -127,8 +117,6 @@ reset_energy_counters:
   target:
     entity:
       domain: sensor
-      integration: olife_wallbox
-    device:
       integration: olife_wallbox
   fields:
     device_id:
